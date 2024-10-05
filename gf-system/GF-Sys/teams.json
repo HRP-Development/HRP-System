@@ -1,0 +1,41 @@
+﻿{
+  "teams": [
+    {
+      "role_name": "👑 Owner",
+      "role_id": 1289357325127385262
+    },
+    {
+      "role_name": "🧑🏻‍💼 Communitymanager",
+      "role_id": 1289357325118869532
+    },
+    {
+      "role_name": "🧑🏻‍💼 Projektleiter",
+      "role_id": 1289551806606868562
+    },
+    {
+      "role_name": "🖥️ Systemverwaltung",
+      "role_id": 234567890123456789
+    },
+    {
+      "role_name": "🛠️ Head Developer",
+      "role_id": 1289357325118869527
+    },
+    {
+      "role_name": "🔧 Developer",
+      "role_id": 1289542815289835570
+    },
+    {
+      "role_name": "🗡️ TTT Team",
+      "role_id": 234567890123456789
+    },
+    {
+      "role_name": "🛡️ DarkRP Team",
+      "role_id": 234567890123456789
+    },
+    {
+      "role_name": "⚔️ Jedi vs Sith Team",
+      "role_id": 1289357325106417711
+    }
+  ]
+}
+  
