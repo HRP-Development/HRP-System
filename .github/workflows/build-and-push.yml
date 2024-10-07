@@ -6,8 +6,33 @@ on:
       - master
 
 jobs:
+  setup:
+    runs-on: self-hosted
+
+    steps:
+      - name: Install Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              apt-transport-https \
+              ca-certificates \
+              curl \
+              software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          sudo apt-get update
+          sudo apt-get install -y docker-ce
+          sudo systemctl start docker
+          sudo systemctl enable docker
+
+      - name: Install Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+
   build-and-notify:
     runs-on: self-hosted
+    needs: setup
 
     steps:
       - name: Checkout repository
@@ -19,13 +44,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Docker Image
-        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/GN-System:latest .
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/GN-System:latest .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/GN-System:latest
 
-      - name: Push Docker Image to Docker Hub
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/GN-System:latest
-
-      - name: Sendet eine Discord Benachrichtigung bei Erfolg
+      - name: Send Discord Notification on Success
+        if: success()  # Nur senden, wenn vorherige Schritte erfolgreich waren
         run: |
           curl -H "Content-Type: application/json" \
                -H "User-Agent: GitHub-Actions-Notifier" \
@@ -56,7 +81,7 @@ jobs:
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Send Discord Notification on Failure
-        if: failure()
+        if: failure()  # Nur senden, wenn vorherige Schritte fehlgeschlagen sind
         run: |
           curl -H "Content-Type: application/json" \
                -H "User-Agent: GitHub-Actions-Notifier" \
