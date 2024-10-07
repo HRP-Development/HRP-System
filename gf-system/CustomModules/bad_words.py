@@ -713,7 +713,7 @@ class Bad:
             words_in_message = re.findall(r'\b\w+\b', msg_content)
             for word in words_in_message:
                 similarity = SequenceMatcher(None, badword, word).ratio()
-                if similarity > 0.9:
+                if similarity > 0.9: 
                     await message.delete()
                     guild = message.guild
                     emb = discord.Embed(
