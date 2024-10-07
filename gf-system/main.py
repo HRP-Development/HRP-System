@@ -28,8 +28,6 @@ from CustomModules.custom_logging import z_logger
 from CustomModules.ticket import TicketHTML as TicketSystem
 from CustomModules.epic_games_api import Errors as epic_errors
 from CustomModules import epic_games_api
-from CustomModules.steam_api import Errors
-from CustomModules import steam_api
 
 from rcon import source
 from dotenv import load_dotenv
