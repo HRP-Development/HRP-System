@@ -1,16 +1,22 @@
-name: Docker Image CI/CD
+name: Build and Notify Discord
+
 on:
   push:
     branches:
       - main
 
 jobs:
-  build:
+  build-and-notify:
     runs-on: [self-hosted, GN-System-Run]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
@@ -21,18 +27,66 @@ jobs:
       - name: Build Docker Image
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/GN-System:latest .
 
-      - name: Push Docker Image
+      - name: Push Docker Image to Docker Hub
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/GN-System:latest
 
-      - name: SSH into Server and Update Bot
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: 22
-          script: |
-            cd /opt/stacks/discord_bot
-            docker compose pull
-            docker compose up -d
-            docker system prune -y
+      - name: Sendet eine Discord Benachrichtigung bei Erfolg
+        run: |
+          curl -H "Content-Type: application/json" \
+               -H "User-Agent: GitHub-Actions-Notifier" \
+               -X POST \
+               -d '{
+                    "content": "✅ Discord Bot erfolgreich gebaut und Hochgeladen!",
+                    "embeds": [{
+                      "title": "✅ Discord Bot erfolgreich gebaut und Hochgeladen!",
+                      "description": "Das Docker-Image für den Discord Bot wurde erfolgreich erstellt und gepusht.",
+                      "color": 3066993,
+                      "fields": [
+                        {
+                          "name": "Branch",
+                          "value": "${{ github.ref }}"
+                        },
+                        {
+                          "name": "Commit",
+                          "value": "${{ github.sha }}"
+                        }
+                      ],
+                      "footer": {
+                        "text": "GN | System"
+                      },
+                      "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                    }],
+                    "avatar_url": "https://cdn.discordapp.com/avatars/1289365690146492418/1fcf3895b5c8486c802a704ea3505f81.webp?size=4096"
+                  }' \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+      - name: Send Discord Notification on Failure
+        if: failure()
+        run: |
+          curl -H "Content-Type: application/json" \
+               -H "User-Agent: GitHub-Actions-Notifier" \
+               -X POST \
+               -d '{
+                    "content": " There was an error building the Discord Bot!",
+                    "embeds": [{
+                      "title": "❌ Fehler beim Bauen des Discord Bots.",
+                      "description": "Das Docker-Image für den Discord Bot konnte nicht erstellt oder gepusht werden.",
+                      "color": 15158332,
+                      "fields": [
+                        {
+                          "name": "Branch",
+                          "value": "${{ github.ref }}"
+                        },
+                        {
+                          "name": "Commit",
+                          "value": "${{ github.sha }}"
+                        }
+                      ],
+                      "footer": {
+                        "text": "GN | System"
+                      },
+                      "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                    }],
+                    "avatar_url": "https://cdn.discordapp.com/avatars/1289365690146492418/1fcf3895b5c8486c802a704ea3505f81.webp?size=4096"
+                  }' \
+               ${{ secrets.DISCORD_WEBHOOK_URL }}
