@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-notify:
-    runs-on: [self-hosted, GN-System-Run]
+    runs-on: GN-System-Run
 
     steps:
       - name: Checkout repository
