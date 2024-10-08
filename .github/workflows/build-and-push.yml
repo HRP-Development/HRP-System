@@ -6,21 +6,12 @@ on:
       - master
 
 jobs:
-  setup:
-    runs-on: self-hosted
-
-    steps:
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
   build-and-notify:
     runs-on: self-hosted
-    needs: setup
-
     steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -29,11 +20,9 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      -
-        name: Build and push
+
+      - name: Build and push Docker image
+        id: push
         uses: docker/build-push-action@v6
         with:
           push: true
@@ -48,7 +37,7 @@ jobs:
                -d '{
                     "content": "success",
                     "embeds": [{
-                      "title": "✅ Discord Bot erfolgreich gebaut und Hochgeladen!",
+                      "title": "✅ Discord Bot erfolgreich gebaut und hochgeladen!",
                       "description": "Das Docker-Image für den Discord Bot wurde erfolgreich erstellt und gepusht.",
                       "color": 3066993,
                       "fields": [
@@ -68,14 +57,14 @@ jobs:
                       "footer": {
                         "text": "GN | System"
                       },
-                      "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                      "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
                     }],
                     "avatar_url": "https://cdn.discordapp.com/avatars/1289365690146492418/1fcf3895b5c8486c802a704ea3505f81.webp?size=4096"
                   }' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Send Discord Notification on Failure
-        if: failure()  # Nur senden, wenn vorherige Schritte fehlgeschlagen sind
+        if: failure()  
         run: |
           curl -H "Content-Type: application/json" \
                -H "User-Agent: GitHub-Actions-Notifier" \
@@ -99,7 +88,7 @@ jobs:
                       "footer": {
                         "text": "GN | System"
                       },
-                      "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                      "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
                     }],
                     "avatar_url": "https://cdn.discordapp.com/avatars/1289365690146492418/1fcf3895b5c8486c802a704ea3505f81.webp?size=4096"
                   }' \
