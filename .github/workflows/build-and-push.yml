@@ -9,32 +9,30 @@ jobs:
   build-and-notify:
     runs-on: self-hosted
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Ensure Docker is running
-        run: |
-          sudo systemctl start docker
-          sudo systemctl enable docker
-          docker info
-
-      - name: Set up Docker Buildx
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      -
+        name: Docker Buildx Setup
         uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+      -
+        name: In Docker-Hub einloggen
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        id: push
+      -
+        name: Build and push
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/GN-System:latest
+          tags: lvckyzaros/GN-System:latest
 
-      - name: Send Discord Notification on Success
+      - name: Sende Discord Benachrichtigung bei Erfolg
         if: success()
         run: |
           curl -H "Content-Type: application/json" \
@@ -69,7 +67,7 @@ jobs:
                   }' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
-      - name: Send Discord Notification on Failure
+      - name: Sende Discord Benachrichtigung bei Fehler
         if: failure()  
         run: |
           curl -H "Content-Type: application/json" \
