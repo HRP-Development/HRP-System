@@ -12,8 +12,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3.7.1
+      #- name: Set up Docker Buildx
+      #  uses: docker/setup-buildx-action@v3.7.1
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
@@ -21,19 +21,26 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Create Buildx builder
-        run: docker buildx create --use --name z-builderx
+     #- name: Create Buildx builder
+      #  run: docker buildx create --use --name z-builderx
 
-      - name: Build and push Docker image
-        run: |
-          docker buildx build \
-            --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
-            --build-arg COMMIT=${{ github.sha }} \
-            --compress \
-            --no-cache \
-            --platform linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/gn-system:latest \
-            --push ./GN-System
+      - name: build and push docker image to registry
+        uses: docker/build-push-action@v5
+        with:
+          context: ./gf-system/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/gn-system:latest
+
+      #- name: Build and push Docker image
+      #  run: |
+      #    docker buildx build \
+      #      --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+      #      --build-arg COMMIT=${{ github.sha }} \
+      #      --compress \
+      #      --no-cache \
+      #      --platform linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x \
+      #      -t ${{ secrets.DOCKERHUB_USERNAME }}/gn-system:latest \
+      #      --push ./GN-System
 
       - name: Sende Discord Benachrichtigung bei Erfolg
         if: success()
