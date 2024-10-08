@@ -733,5 +733,5 @@ class Bad:
                     )
                     emb.set_footer(text='Gaming Networks | System', icon_url=guild.icon.url)
                     await message.author.send(embed=emb)
-                    return
+                    return 
                
