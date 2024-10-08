@@ -8,20 +8,18 @@ on:
 jobs:
   build-and-notify:
     runs-on: self-hosted
-    container:
-      image: docker:20.10.7
-      options: --privileged
     services:
       docker:
         image: docker:20.10.7-dind
         options: > 
           --privileged
           --network host
+
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
-      -
-        name: Login to Docker Hub
+
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -43,7 +41,7 @@ jobs:
           echo "Digest: ${{ steps.push.outputs.digest }}"
           echo "Tag: ${{ steps.push.outputs.tags }}"
 
-      - name: Sende Discord Benachrichtigung bei Erfolg
+      - name: Send Discord notification on success
         if: success()
         run: |
           curl -H "Content-Type: application/json" \
@@ -78,7 +76,7 @@ jobs:
                   }' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
-      - name: Sende Discord Benachrichtigung bei Fehler
+      - name: Send Discord notification on failure
         if: failure()  
         run: |
           curl -H "Content-Type: application/json" \
