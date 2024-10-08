@@ -8,13 +8,6 @@ on:
 jobs:
   build-and-notify:
     runs-on: self-hosted
-    services:
-      docker:
-        image: docker:20.10.7-dind
-        options: > 
-          --privileged
-          --network host
-
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
