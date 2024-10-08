@@ -14,6 +14,7 @@ jobs:
         options: > 
           --privileged
           --network host
+
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -28,11 +29,17 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
+        id: push # ID hinzugefügt, damit die Outputs verwendet werden können
         uses: docker/build-push-action@v6
         with:
           platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/gn-system:latest
+
+      - name: Debug Outputs
+        run: |
+          echo "Digest: ${{ steps.push.outputs.digest }}"
+          echo "Tag: ${{ steps.push.outputs.tags }}"
 
       - name: Sende Discord Benachrichtigung bei Erfolg
         if: success()
@@ -63,7 +70,7 @@ jobs:
                       "footer": {
                         "text": "GN | System"
                       },
-                      "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                      "timestamp": "${{ github.event.head_commit.timestamp }}"
                     }],
                     "avatar_url": "https://cdn.discordapp.com/avatars/1289365690146492418/1fcf3895b5c8486c802a704ea3505f81.webp?size=4096"
                   }' \
@@ -94,7 +101,7 @@ jobs:
                       "footer": {
                         "text": "GN | System"
                       },
-                      "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                      "timestamp": "${{ github.event.head_commit.timestamp }}"
                     }],
                     "avatar_url": "https://cdn.discordapp.com/avatars/1289365690146492418/1fcf3895b5c8486c802a704ea3505f81.webp?size=4096"
                   }' \
