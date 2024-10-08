@@ -11,6 +11,12 @@ jobs:
     container:
       image: docker:20.10.7
       options: --privileged
+    services:
+      docker:
+        image: docker:20.10.7-dind
+        options: > 
+          --privileged
+          --network host
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
