@@ -1,4 +1,4 @@
-name: Build and Notify Discord
+name: Bauen und Pushen
 
 on:
   push:
@@ -19,27 +19,35 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v3
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push
-        id: push
+        id: build-push
         uses: docker/build-push-action@v6
         with:
-          platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/gn-system:latest
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.ref == 'refs/heads/master' }} # Branch-Bedingung angepasst
+          cache-from: type=registry,ref=ghcr.io/python-discord/bot:latest
+          cache-to: type=inline
+          tags: |
+            ghcr.io/python-discord/bot:latest
+            ghcr.io/python-discord/bot:${{ github.sha }} # SHA als Tag verwenden
+          build-args: |
+            git_sha=${{ github.sha }}
 
       - name: Debug Outputs
         run: |
-          echo "Digest: ${{ steps.push.outputs.digest }}"
-          echo "Tag: ${{ steps.push.outputs.tags }}"
+          echo "Digest: ${{ steps.build-push.outputs.digest }}"
+          echo "Tags: ${{ steps.build-push.outputs.tags }}"
 
       - name: Send Discord notification on success
         if: success()
@@ -64,7 +72,7 @@ jobs:
                         },
                         {
                           "name": "Image Digest",
-                          "value": "${{ steps.push.outputs.digest }}"
+                          "value": "${{ steps.build-push.outputs.digest }}"
                         }
                       ],
                       "footer": {
