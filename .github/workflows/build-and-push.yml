@@ -29,25 +29,18 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      -
+        name: Build and push
+        uses: docker/build-push-action@v6
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/GN-System
-
-      - name: Build and Push Docker Image
-        id: push
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/GN-System:latest
 
       - name: Send Discord Notification on Success
-        if: success()  # Nur senden, wenn vorherige Schritte erfolgreich waren
+        if: success()
         run: |
           curl -H "Content-Type: application/json" \
                -H "User-Agent: GitHub-Actions-Notifier" \
