@@ -56,6 +56,7 @@ PUBLIC_IP = os.getenv('PUBLIC_IP')
 HTTP_PORT = os.getenv('HTTP_PORT')
 l_channel = os.getenv('LOG_CHANNEL')
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
+MAIN_GUILD = os.getenv('MAINGUILD')
 LOG_CHANNEL = int(l_channel) if l_channel else None
     
 log_manager = log_handler.LogManager(LOG_FOLDER, BOT_NAME, LOG_LEVEL)
@@ -63,7 +64,6 @@ discord_logger = log_manager.get_logger('discord')
 program_logger = log_manager.get_logger('Program')
 program_logger.info('Starte Discord Bot...')
 
-# Steam API init
 SteamAPI = steam_api.API(STEAM_API_KEY)
 
 LUA_COMMANDS = {
@@ -1299,7 +1299,6 @@ class Functions():
 
         data = []
         for game in games:
-            print(game)
             game_info = await SteamAPI.get_app_details(game)
             if game_info is None:
                 program_logger.debug(f'Game not found: {game}')
@@ -1432,7 +1431,7 @@ class Tasks():
                             embed = discord.Embed(
                                 title = game['title'],
                                 url = game['link'],
-                                color = discord.Color.purple(),
+                                color = discord.Color.dark_gold(),
                                 timestamp = datetime.datetime.now(datetime.UTC)
                             )
                             embed.set_image(url=game['picture'])
@@ -1451,7 +1450,7 @@ class Tasks():
         while True:
             await _function()
             try:
-                await asyncio.sleep(60*3)
+                await asyncio.sleep(60*30)
             except asyncio.CancelledError:
                 break
             
@@ -1503,7 +1502,7 @@ class Tasks():
                             embed = discord.Embed(
                                 title = game['title'],
                                 url = f'https://store.steampowered.com/app/{game['id']}',
-                                color = discord.Color.dark_purple()
+                                color = discord.Color.dark_gold()
                             )
                             embed.set_image(url=f'https://cdn.cloudflare.steamstatic.com/steam/apps/{game['id']}/header.jpg')
                             embed.add_field(name='Titel', value=game['title'], inline=False)
@@ -1523,14 +1522,14 @@ class Tasks():
         while True:
             await _function()
             try:
-                await asyncio.sleep(60*3)
+                await asyncio.sleep(60*30)
             except asyncio.CancelledError:
                 break
             
     async def check_team():
         async def _function():
             try:
-                guild = bot.get_guild(1289357325076926504)
+                guild = bot.get_guild(MAIN_GUILD)
                 if guild:
                     embed = await Functions.update_team_embed(guild)
                     c.execute("SELECT * FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (guild.id,))
