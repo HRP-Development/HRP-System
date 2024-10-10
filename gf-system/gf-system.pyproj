@@ -13,7 +13,7 @@
     <Name>GF-System</Name>
     <RootNamespace>DBDStats</RootNamespace>
     <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
-    <InterpreterId>MSBuild|env|$(MSBuildProjectFullPath)</InterpreterId>
+    <InterpreterId>MSBuild|GN-System|$(MSBuildProjectFullPath)</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -27,7 +27,6 @@
     <Compile Include="CustomModules\app_translation.py" />
     <Compile Include="CustomModules\bad_words.py" />
     <Compile Include="CustomModules\context_commands.py" />
-    <Compile Include="CustomModules\custom_logging.py" />
     <Compile Include="CustomModules\epic_games_api.py" />
     <Compile Include="CustomModules\log_handler.py" />
     <Compile Include="CustomModules\steam_api.py" />
@@ -44,10 +43,10 @@
     <Folder Include="CustomModules\" />
   </ItemGroup>
   <ItemGroup>
-    <Interpreter Include="env\">
-      <Id>env</Id>
+    <Interpreter Include="H:\venvs\GN-System\">
+      <Id>GN-System</Id>
       <Version>0.0</Version>
-      <Description>env (Python 3.12 (64-bit))</Description>
+      <Description>GN-System (Python 3.12 (64-bit))</Description>
       <InterpreterPath>Scripts\python.exe</InterpreterPath>
       <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>

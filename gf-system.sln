@@ -7,13 +7,8 @@ Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "gf-system", "gf-system\gf-s
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Projektmappenelemente", "Projektmappenelemente", "{F349F465-FF67-48FE-ABA4-F5D4301FA44B}"
 	ProjectSection(SolutionItems) = preProject
-		.env = .env
 		.gitattributes = .gitattributes
 		.gitignore = .gitignore
-		.gitlab-ci.yml.template = .gitlab-ci.yml.template
-		docker-compose.yml.template = docker-compose.yml.template
-		LICENSE = LICENSE
-		README.md = README.md
 	EndProjectSection
 EndProject
 Global

@@ -32,22 +32,28 @@ class Errors:
             self.message = message
             super().__init__(self.message)
 
-class API():
-    def __init__(self, key):
+class API:
+    def __init__(self, key=None):
         """
-        Initialize the API object with the given API key.
+        Initialize the API object with the given API key or fallback to environment variable.
 
         Args:
-            key (str): The Steam API key.
+            key (str, optional): The Steam API key. If not provided, will attempt to use
+                                 the environment variable 'STEAM_API_KEY'.
         Raises:
-            Errors.InvalidKey: If the provided API key is invalid.
+            Errors.InvalidKey: If the provided API key or environment variable key is invalid.
         """
-        self.KEY = key
+        self.KEY = key or os.getenv('STEAM_API_KEY')
+
+        if not self.KEY:
+            raise Errors.InvalidKey("No API key provided or found in environment variables.")
+
         self.URL_GetOwnedGames = f'https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key={self.KEY}&steamid='
         self.URL_ResolveVanity = f'http://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key={self.KEY}&vanityurl='
         self.URL_GetPlayerAchievements = f'https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?key={self.KEY}&steamid='
         self.URL_GetPlayerSummeries = f'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key={self.KEY}&steamids='
         self.URL_GetAppDetails = 'https://store.steampowered.com/api/appdetails?appids='
+
         isValid = asyncio.run(self.keyIsValid())
         if not isValid:
             raise Errors.InvalidKey()

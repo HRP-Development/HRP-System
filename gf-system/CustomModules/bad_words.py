@@ -1,12 +1,10 @@
-﻿import discord
-import re
-import datetime
+﻿# Badwordlist v1
 from difflib import SequenceMatcher
 
 
-class Bad:
+class BadWords:
     def __init__(self):
-        self.badwordlist = [
+        self.badwordlist = {
             "Affenarsch",
             "Affenkotstück",
             "Affenmensch",
@@ -78,7 +76,6 @@ class Bad:
             "Hack ab!",
             "Hackfresse",
             "Halbaffe",
-            "Halma",
             "Hannefatzke",
             "hartzig",
             "Hausschuhgesicht",
@@ -697,41 +694,29 @@ class Bad:
             "zyklon",
             "dreilochstute",
             "hurensohn",
-        ]
+        }
+        self.words_to_check = {word.lower() for word in self.badwordlist}
 
-    async def check_message(self, message: discord.Message):
-        """
-        Überprüft eine Nachricht auf böse Wörter und löscht die Nachricht, wenn
-        ein ähnliches oder exaktes Wort gefunden wird.
-        """
-        msg_content = message.content.lower()
-        for badword in self.badwordlist:
-            if badword in msg_content:
-                await message.delete()
-                return
 
-            words_in_message = re.findall(r'\b\w+\b', msg_content)
-            for word in words_in_message:
-                similarity = SequenceMatcher(None, badword, word).ratio()
-                if similarity > 0.8:
-                    await message.delete()
-                    guild = message.guild
-                    emb = discord.Embed(
-                    title='⚠️ Warnung ⚠️',
-                    color=discord.Color.yellow(),
-                    timestamp=datetime.datetime.now(datetime.timezone.utc),
-                    )
-                    emb.add_field(
-                    name="Grund",
-                    value="Deine Nachricht wurde vom System gemeldet und gelöscht.",
-                        inline=False
-                    )
-                    emb.add_field(
-                        name="Gelöschte Nachricht",
-                        value=message.content,
-                        inline=False
-                    )
-                    emb.set_footer(text='Gaming Networks | System', icon_url=guild.icon.url)
-                    await message.author.send(embed=emb)
-                    return
+    def isBad(self, message: str) -> bool:
+        cleaned_message = ''.join(char.lower() if char.isalnum() or char.isspace() else ' ' for char in message)
+        message_words = set(cleaned_message.split())
+        
+        if self.words_to_check.intersection(message_words):
+            return True
+        
+        for message_word in message_words:
+            for word in self.words_to_check:
+                similarity = SequenceMatcher(None, word, message_word).ratio()
+                if similarity >= 0.8:
+                    return True
+        
+        return False
                
+
+
+
+if __name__ == "__main__":
+    bad = BadWords()
+    test = "Du bist ein Huren sohn."
+    print(bad.isBad(test))

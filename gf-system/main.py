@@ -10,26 +10,21 @@ import json
 import jsonschema
 import os
 import platform
-import psutil
 import signal
 import sys
 import sqlite3
 import string
 import io
-import aiohttp
 
 from CustomModules.app_translation import Translator as CustomTranslator
 from CustomModules import log_handler
 from CustomModules import steam_api
 from CustomModules.steam_api import Errors as steam_errors
-from CustomModules.bad_words import Bad
+from CustomModules.bad_words import BadWords
 from CustomModules import context_commands
-from CustomModules.custom_logging import z_logger
 from CustomModules.ticket import TicketHTML as TicketSystem
 from CustomModules.epic_games_api import Errors as epic_errors
 from CustomModules import epic_games_api
-from CustomModules.steam_api import Errors
-from CustomModules import steam_api
 
 from rcon import source
 from dotenv import load_dotenv
@@ -52,7 +47,7 @@ BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{APP_FOLDER_NAME}.db')
 BOT_VERSION = "1.0.0"
-BAD_FILTER = Bad()
+BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
@@ -62,13 +57,14 @@ HTTP_PORT = os.getenv('HTTP_PORT')
 l_channel = os.getenv('LOG_CHANNEL')
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 LOG_CHANNEL = int(l_channel) if l_channel else None
-
-steam__api = steam_api.API(STEAM_API_KEY)
-
+    
 log_manager = log_handler.LogManager(LOG_FOLDER, BOT_NAME, LOG_LEVEL)
 discord_logger = log_manager.get_logger('discord')
 program_logger = log_manager.get_logger('Program')
 program_logger.info('Starte Discord Bot...')
+
+# Steam API init
+SteamAPI = steam_api.API(STEAM_API_KEY)
 
 LUA_COMMANDS = {
     "GetIPAddress": "print(game.GetIPAddress())",
@@ -834,7 +830,7 @@ class aclient(discord.AutoShardedClient):
         if message.guild is None:
             return
 
-        await BAD_FILTER.check_message(message)
+        await Functions.check_message(message)
 
     async def on_guild_remove(self, guild):
         if not self.synced:
@@ -891,16 +887,6 @@ class aclient(discord.AutoShardedClient):
             conn = sqlite3.connect(SQL_FILE)
             c = conn.cursor()
             await self.setup_database()
-            c.execute("SELECT * FROM GUILD_SETTINGS")
-            guilds = c.fetchall()
-            for guild in guilds:
-                for channel_id in guild[1:]:
-                    if channel_id is not None:
-                        try:
-                            channel = await Functions.get_or_fetch('channel', channel_id)
-                            logger = z_logger(channel)
-                        except discord.HTTPException as e:
-                            program_logger.error(f"Error while fetching channel: {e}")
         except sqlite3.Error as e:
             program_logger.critical(f"Error while connecting to the database: {e}")
             sys.exit(f"Error while connecting to the database: {e}")
@@ -1235,27 +1221,6 @@ class Functions():
         finally:
             program_logger.debug(f'Sent logging message in {log_channel.guild.name} ({log_channel.guild.id}) with type {kind}.')
 
-    def format_seconds(seconds):
-        years, remainder = divmod(seconds, 31536000)
-        days, remainder = divmod(remainder, 86400)
-        hours, remainder = divmod(remainder, 3600)
-        minutes, seconds = divmod(remainder, 60)
-
-        parts = []
-        if years:
-            parts.append(f"{years}y")
-        if days:
-            parts.append(f"{days}d")
-        if hours:
-            parts.append(f"{hours}h")
-        if minutes:
-            parts.append(f"{minutes}m")
-        if seconds:
-            parts.append(f"{seconds}s")
-
-        return " ".join(parts)
-
-
     async def get_or_fetch(item: str, item_id: int) -> Optional[Any]:
         """
         Attempts to retrieve an object using the 'get_<item>' method of the bot class, and
@@ -1334,7 +1299,8 @@ class Functions():
 
         data = []
         for game in games:
-            game_info = await steam__api.api.get_app_details(game)
+            print(game)
+            game_info = await SteamAPI.get_app_details(game)
             if game_info is None:
                 program_logger.debug(f'Game not found: {game}')
                 continue
@@ -1365,6 +1331,38 @@ class Functions():
 
         return embed
     
+    async def check_message(message: discord.Message):
+        """
+        Überprüft eine Nachricht auf böse Wörter und löscht die Nachricht, wenn
+        ein ähnliches oder exaktes Wort gefunden wird.
+        """
+        if BadWords.isBad(message.content):
+            await message.delete()
+            guild = message.guild
+            emb = discord.Embed(
+            title='⚠️ Warnung ⚠️',
+            color=discord.Color.yellow(),
+            timestamp=datetime.datetime.now(datetime.timezone.utc),
+            )
+            emb.add_field(
+            name="Grund",
+            value="Deine Nachricht wurde vom System gemeldet und gelöscht.",
+                inline=False
+            )
+            emb.add_field(
+                name="Gelöschte Nachricht",
+                value=message.content,
+                inline=False
+            )
+            emb.set_footer(text='Gaming Networks | System', icon_url=guild.icon.url)
+            try:
+                await message.author.send(embed=emb)
+            except discord.Forbidden:
+                pass
+            finally:
+                return
+
+
 class Tasks():
     async def update_embeds_task():
         async def _function():
