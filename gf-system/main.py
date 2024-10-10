@@ -59,9 +59,7 @@ HTTP_PORT = os.getenv('HTTP_PORT')
 l_channel = os.getenv('LOG_CHANNEL')
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 LOG_CHANNEL = int(l_channel) if l_channel else None
-
-steam__api = steam_api.API(STEAM_API_KEY)
-
+    
 log_manager = log_handler.LogManager(LOG_FOLDER, BOT_NAME, LOG_LEVEL)
 discord_logger = log_manager.get_logger('discord')
 program_logger = log_manager.get_logger('Program')
@@ -1321,7 +1319,8 @@ class Functions():
 
         data = []
         for game in games:
-            game_info = await steam__api.api.get_app_details(game)
+            print(game)
+            game_info = await steam_api.API.get_app_details(game)
             if game_info is None:
                 program_logger.debug(f'Game not found: {game}')
                 continue
