@@ -94,7 +94,7 @@ class JSONValidator:
 
     default_content = {
         "activity_type": "Watching",
-        "activity_title": "Gaming Networks Services",
+        "activity_title": "Über die Gaming Network Infrastruktur",
         "activity_url": "https://status.gaming-networks.net",
         "status": "dnd"
     }
@@ -1557,10 +1557,7 @@ class Tasks():
                 await asyncio.sleep(60*60)
             except asyncio.CancelledError:
                 break
-
-    
-
-               
+           
 class Owner():
     async def log(message, args):
         async def __wrong_selection():
