@@ -361,8 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/Basis/env
-/Basis/.env
-/Basis/BOTFOLDER/activity.json
-/.env
-/Basis/BOTFOLDER
+/gf-system/.env
+/gf-system/.env
