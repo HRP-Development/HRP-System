@@ -1,10 +1,8 @@
 ﻿# Badwordlist v1
 from difflib import SequenceMatcher
-import discord
-import datetime
 
 
-class Bad:
+class BadWords:
     def __init__(self):
         self.badwordlist = {
             "Affenarsch",
@@ -78,7 +76,6 @@ class Bad:
             "Hack ab!",
             "Hackfresse",
             "Halbaffe",
-            "Halma",
             "Hannefatzke",
             "hartzig",
             "Hausschuhgesicht",
@@ -711,41 +708,15 @@ class Bad:
         for message_word in message_words:
             for word in self.words_to_check:
                 similarity = SequenceMatcher(None, word, message_word).ratio()
-                print(similarity)
                 if similarity >= 0.8:
                     return True
         
         return False
-    
-    async def check_message(self, message: discord.Message):
-        """
-        Überprüft eine Nachricht auf böse Wörter und löscht die Nachricht, wenn
-        ein ähnliches oder exaktes Wort gefunden wird.
-        """
-        if bad.isBad(message.content):
-          await message.delete()
-          guild = message.guild
-          emb = discord.Embed(
-          title='⚠️ Warnung ⚠️',
-          color=discord.Color.yellow(),
-          timestamp=datetime.datetime.now(datetime.timezone.utc),
-          )
-          emb.add_field(
-          name="Grund",
-          value="Deine Nachricht wurde vom System gemeldet und gelöscht.",
-              inline=False
-          )
-          emb.add_field(
-              name="Gelöschte Nachricht",
-              value=message.content,
-              inline=False
-          )
-          emb.set_footer(text='Gaming Networks | System', icon_url=guild.icon.url)
-          await message.author.send(embed=emb)
-          return
-                   
+               
 
 
 
 if __name__ == "__main__":
-    bad = Bad()
+    bad = BadWords()
+    test = "Du bist ein Huren sohn."
+    print(bad.isBad(test))
