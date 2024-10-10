@@ -27,7 +27,6 @@
     <Compile Include="CustomModules\app_translation.py" />
     <Compile Include="CustomModules\bad_words.py" />
     <Compile Include="CustomModules\context_commands.py" />
-    <Compile Include="CustomModules\custom_logging.py" />
     <Compile Include="CustomModules\epic_games_api.py" />
     <Compile Include="CustomModules\log_handler.py" />
     <Compile Include="CustomModules\steam_api.py" />

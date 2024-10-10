@@ -24,7 +24,6 @@ from CustomModules import steam_api
 from CustomModules.steam_api import Errors as steam_errors
 from CustomModules.bad_words import Bad
 from CustomModules import context_commands
-from CustomModules.custom_logging import z_logger
 from CustomModules.ticket import TicketHTML as TicketSystem
 from CustomModules.epic_games_api import Errors as epic_errors
 from CustomModules import epic_games_api
@@ -889,16 +888,6 @@ class aclient(discord.AutoShardedClient):
             conn = sqlite3.connect(SQL_FILE)
             c = conn.cursor()
             await self.setup_database()
-            c.execute("SELECT * FROM GUILD_SETTINGS")
-            guilds = c.fetchall()
-            for guild in guilds:
-                for channel_id in guild[1:]:
-                    if channel_id is not None:
-                        try:
-                            channel = await Functions.get_or_fetch('channel', channel_id)
-                            logger = z_logger(channel)
-                        except discord.HTTPException as e:
-                            program_logger.error(f"Error while fetching channel: {e}")
         except sqlite3.Error as e:
             program_logger.critical(f"Error while connecting to the database: {e}")
             sys.exit(f"Error while connecting to the database: {e}")
