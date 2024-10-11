@@ -33,7 +33,7 @@ jobs:
         id: build-push
         uses: docker/build-push-action@v6
         with:
-          context: ../../gf-system
+          context: ../../gf-system/
           file: ./Dockerfile
           push: ${{ github.ref == 'refs/heads/master' }} 
           cache-from: type=registry,ref=ghcr.io/python-discord/bot:latest
@@ -56,7 +56,6 @@ jobs:
                -H "User-Agent: GitHub-Actions-Notifier" \
                -X POST \
                -d '{
-                    "content": "success",
                     "embeds": [{
                       "title": "✅ Discord Bot erfolgreich gebaut und hochgeladen!",
                       "description": "Das Docker-Image für den Discord Bot wurde erfolgreich erstellt und gepusht.",
@@ -91,7 +90,6 @@ jobs:
                -H "User-Agent: GitHub-Actions-Notifier" \
                -X POST \
                -d '{
-                    "content": "error",
                     "embeds": [{
                       "title": "❌ Fehler beim Bauen des Discord Bots.",
                       "description": "Das Docker-Image für den Discord Bot konnte nicht erstellt oder gepusht werden.",
