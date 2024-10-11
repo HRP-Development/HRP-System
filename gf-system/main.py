@@ -139,6 +139,7 @@ class aclient(discord.AutoShardedClient):
         self.synced = False
         self.initialized = False
         self.captcha_timeout = []
+        self.message_cache = {}
 
 
     class Presence():
@@ -900,12 +901,13 @@ class aclient(discord.AutoShardedClient):
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
         if self.initialized:
             return
+        program_logger.info(r'''
+        
+        ''')
         global start_time
         start_time = datetime.datetime.now(datetime.UTC)
         program_logger.info(f"Fertig geladen in {time.time() - startupTime_start:.2f} Sekunden.")
-        self.initialized = True
-
-        
+        self.initialized = True    
 bot = aclient()
 tree = discord.app_commands.CommandTree(bot)
 tree.on_error = bot.on_app_command_error
@@ -1328,6 +1330,26 @@ class Functions():
         Überprüft eine Nachricht auf böse Wörter und löscht die Nachricht, wenn
         ein ähnliches oder exaktes Wort gefunden wird.
         """
+        if await Functions.isSpamming(message):
+            await message.delete()
+
+            embed = discord.Embed()
+            embed.title = "Nutzer wurde getimeouted"
+            embed.color = discord.Color.red()
+            embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
+            embed.set_footer(text=FOOTER_TEXT, icon_url=message.guild.icon.url)
+            
+            if message.author.is_timed_out():
+                return
+            try:
+                await message.author.timeout(datetime.timedelta(minutes=5), reason="Spamming")
+                embed.description = f"Der Nutzer {message.author.mention} wurde für 5 Minuten getimeouted, da er zu schnell schreibt."
+            except discord.Forbidden:
+                embed.description = f"Der Nutzer {message.author.mention} konnte nicht getimeouted werden, da ich keine Rechte dazu habe."
+            finally:
+                ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
+                await ca.send(embed=embed)
+
         if BadWords.isBad(message.content):
             await message.delete()
             guild = message.guild
@@ -1353,6 +1375,28 @@ class Functions():
                 pass
             finally:
                 return
+
+    async def isSpamming(message: discord.Message) -> bool:
+        author = message.author
+        if author.bot:
+            return False
+        
+        user_id = author.id
+        current_time = message.created_at.timestamp()
+
+        # Cache the user's message times
+        if user_id not in bot.message_cache:
+            bot.message_cache[user_id] = []
+
+        # Remove old messages (older than 10 seconds)
+        bot.message_cache[user_id] = [msg_time for msg_time in bot.message_cache[user_id] if current_time - msg_time < 10]
+
+        bot.message_cache[user_id].append(current_time)
+
+        if len(bot.message_cache[user_id]) >= 5:
+            return True
+
+        return False
 
 
 class Tasks():
@@ -1497,7 +1541,7 @@ class Tasks():
     async def check_team():
         async def _function():
             try:
-                guild = Functions.get_or_fetch('guild', MAIN_GUILD)
+                guild = await Functions.get_or_fetch('guild', MAIN_GUILD)
                 if guild:
                     embed = await Functions.update_team_embed(guild)
                     c.execute("SELECT * FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (guild.id,))
