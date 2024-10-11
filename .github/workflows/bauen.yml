@@ -5,6 +5,10 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-notify:
     runs-on: self-hosted
@@ -27,7 +31,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
         id: build-push
@@ -37,6 +41,9 @@ jobs:
           push: ${{ github.ref == 'refs/heads/master' }} 
           cache-from: type=registry,ref=ghcr.io/gaming-network/gn-system:latest
           cache-to: type=inline
+          tags: |
+            ghcr.io/gaming-network/gn-system:latest
+            ghcr.io/gaming-network/gn-system:${{ github.sha }}
           build-args: |
             git_sha=${{ github.sha }}
 
