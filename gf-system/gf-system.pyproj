@@ -31,7 +31,6 @@
     <Compile Include="CustomModules\log_handler.py" />
     <Compile Include="CustomModules\steam_api.py" />
     <Compile Include="CustomModules\ticket.py" />
-    <Compile Include="Dockerfile" />
     <Compile Include="main.py" />
     <Compile Include="__init__.py" />
   </ItemGroup>

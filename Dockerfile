@@ -2,10 +2,10 @@ FROM python:3.12-alpine
 
 WORKDIR /app
 
-COPY CustomModules ./CustomModules
-COPY teams.json .
-COPY *.py .
-COPY requirements.txt .
+COPY gf-system/CustomModules ./CustomModules
+COPY gf-system/teams.json .
+COPY gf-system/*.py .
+COPY gf-system/requirements.txt .
 
 ENV TERM=xterm
 ENV PYTHONUNBUFFERED=1
