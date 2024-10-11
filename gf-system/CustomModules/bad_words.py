@@ -1,4 +1,5 @@
 ﻿# Badwordlist v1
+from functools import lru_cache
 from difflib import SequenceMatcher
 
 
@@ -17,6 +18,7 @@ class BadWords:
         self.words_to_check = {word.lower() for word in self.badwordlist}
 
 
+    @lru_cache(maxsize=50)
     def isBad(self, message: str) -> bool:
         cleaned_message = ''.join(char.lower() if char.isalnum() or char.isspace() else ' ' for char in message)
         message_words = set(cleaned_message.split())

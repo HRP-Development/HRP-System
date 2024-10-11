@@ -1,20 +1,20 @@
 ﻿# -*- coding: utf-8 -*-
 #Import
-import random
 import time
 startupTime_start = time.time()
 import asyncio
 import datetime
 import discord
+import io
 import json
 import jsonschema
 import os
 import platform
+import random
 import signal
 import sys
 import sqlite3
 import string
-import io
 
 from CustomModules.app_translation import Translator as CustomTranslator
 from CustomModules import log_handler
@@ -120,14 +120,6 @@ class JSONValidator:
 validator = JSONValidator(ACTIVITY_FILE)
 validator.validate_and_fix_json()
 
-def load_json():
-    try:
-        with open(f'{APP_FOLDER_NAME}/teams.json', 'r', encoding='utf-8-sig') as f:
-            return json.load(f)
-    except Exception as e:
-        program_logger.error(f'Fehler beim laden der Teams: {e}')
-        print(f'Fehler beim laden der Teams: {e}')
-        return {}
 
 class aclient(discord.AutoShardedClient):
     def __init__(self):
@@ -622,7 +614,6 @@ class aclient(discord.AutoShardedClient):
             await ca.send(embed=embed)
         except Exception as e:
             program_logger.error(f"Error while sending channel create log: {e}")
-            print(f"Error while sending channel create embed: \n {e}")
 
     async def on_guild_channel_delete(self, channel):
         embed = discord.Embed(
@@ -655,7 +646,6 @@ class aclient(discord.AutoShardedClient):
             await ca.send(embed=embed)
         except Exception as e:
             program_logger.error(f"Error while sending role create log: {e}")
-            print(f"Error while sending role create embed: \n {e}")
     
     async def on_guild_role_delete(self, role):
         embed = discord.Embed(
@@ -729,7 +719,6 @@ class aclient(discord.AutoShardedClient):
                 await ca.send(embed=emb)
             except Exception as e:
                 program_logger.error(f"Error while sending role update log: {e}")
-                print(f"Error while sending role update embed: \n {e}")
         
     async def on_message_delete(self, message):
         embed = discord.Embed(
@@ -745,7 +734,6 @@ class aclient(discord.AutoShardedClient):
             await ca.send(embed=embed)
         except discord.HTTPException as e:
             program_logger.error(f"Error while sending message delete log: {e}")
-            print(f"Error while sending message delete log: {e}")
     
     async def on_member_update(self, before, after):
         embed = discord.Embed(
@@ -788,8 +776,6 @@ class aclient(discord.AutoShardedClient):
             ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
             await ca.send(embed=embed)
 
-
-     
     async def on_message(self, message):
         async def __wrong_selection():
             await message.channel.send(
@@ -856,7 +842,7 @@ class aclient(discord.AutoShardedClient):
                 except Exception as e:
                     program_logger.error(f"Error while sending welcome message: {e}")
             else:
-                print("Keine Gildeinstellungen gefunden.")
+                program_logger.error("Keine Gildeinstellungen gefunden.")
                 
     async def on_member_remove(self, member: discord.Member):
         member_anzahl = len(member.guild.members)
@@ -877,7 +863,7 @@ class aclient(discord.AutoShardedClient):
             except Exception as e:
                    program_logger.error(f"Error while sending leave message: {e}")
         else:
-            print("Keine Gildeinstellungen gefunden.")
+            program_logger.error("Keine Gildeinstellungen gefunden.")
             
         
     async def setup_hook(self):
@@ -904,6 +890,11 @@ class aclient(discord.AutoShardedClient):
         await tree.sync()
         discord_logger.info('Syncronisierung.')
         self.synced = True
+        #Background shit
+        bot.loop.create_task(Tasks.update_embeds_task())
+        bot.loop.create_task(Tasks.CheckGameDuration())
+        bot.loop.create_task(Tasks.CheckFreeGames())
+        bot.loop.create_task(Tasks.check_team())
 
     async def on_ready(self):
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
@@ -913,12 +904,6 @@ class aclient(discord.AutoShardedClient):
         start_time = datetime.datetime.now(datetime.UTC)
         program_logger.info(f"Fertig geladen in {time.time() - startupTime_start:.2f} Sekunden.")
         self.initialized = True
-        #background shit
-        bot.loop.create_task(Tasks.update_embeds_task())
-        bot.loop.create_task(Tasks.CheckGameDuration())
-        bot.loop.create_task(Tasks.CheckEpicGames())
-        bot.loop.create_task(Tasks.FreeSteamGames())
-        bot.loop.create_task(Tasks.check_team())
 
         
 bot = aclient()
@@ -933,7 +918,7 @@ class SignalHandler:
         signal.signal(signal.SIGTERM, self._shutdown)
 
     def _shutdown(self, signum, frame):
-        program_logger.info('Siganel für das Herunterfahren erhalten...')
+        program_logger.info('Signal für das Herunterfahren erhalten...')
         bot.loop.create_task(Owner.shutdown(owner))
 
 if platform.system() == 'Windows':
@@ -964,6 +949,14 @@ class Functions():
         captcha_text = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
         data = image_captcha.generate(captcha_text)
         return io.BytesIO(data.read()), captcha_text
+
+    def load_teams_json():
+        try:
+            with open('teams.json', 'r', encoding='utf-8-sig') as f:
+                return json.load(f)
+        except Exception as e:
+            program_logger.error(f'Fehler beim laden der Teams: {e}')
+            return {}
     
     async def verify(interaction: discord.Interaction):
         class CaptchaInput(discord.ui.Modal, title = 'Verification'):
@@ -1257,7 +1250,7 @@ class Functions():
             response = response.replace('\n', '').replace(command, '').replace('>', '').replace(' ', '').replace('(', '').replace(')', '').replace('...', '')
             return response
         except Exception as e:
-            program_logger.error(f'Fehler beim ausfüren von rcon: {e}')
+            program_logger.error(f'Fehler beim Ausführen von rcon: {e}')
             return e
 
     async def send_update_serverpanel(entry_id: tuple, channel: discord.TextChannel, update: bool = False, message_on_update: discord.Message = ''):
@@ -1314,7 +1307,7 @@ class Functions():
         return data
     
     async def update_team_embed(guild):
-        teams_data = load_json()
+        teams_data = Functions.load_teams_json()
         embed = discord.Embed(
             title="Das Team", 
             description="", 
@@ -1399,58 +1392,86 @@ class Tasks():
             except asyncio.CancelledError:
                 break
             
-    async def CheckEpicGames():
-        async def _function():
-            global recent_games
+    async def CheckFreeGames():
+        async def _fetch_games(platform):
+            if platform == "epic":
+                return await epic_games_api.GetFreeGames()
+            elif platform == "steam":
+                return await Functions.GetSteamAppInfo()
+    
+        async def _get_game_details(game, platform):
+            if platform == "epic":
+                return {
+                    "title": game['title'],
+                    "url": game['link'],
+                    "image_url": game['picture'],
+                    "description": game['description'],
+                    "id": game['id']
+                }
+            elif platform == "steam":
+                return {
+                    "title": game['title'],
+                    "url": f'https://store.steampowered.com/app/{game["id"]}',
+                    "image_url": f'https://cdn.cloudflare.steamstatic.com/steam/apps/{game["id"]}/header.jpg',
+                    "description": game['description'],
+                    "id": game['id']
+                }
+    
+        async def _function(platform):
+            recent_list = []
             try:
                 c.execute("SELECT * FROM GUILD_SETTINGS")
                 data = c.fetchall()
-                if data is None:
+                if not data:
                     program_logger.error("Keine Gildeneinstellungen gefunden.")
-                    print("Keine Gildeneinstellungen gefunden.")
+                    return
+    
                 channel = await Functions.get_or_fetch('channel', data[0][6])
                 if not channel:
                     program_logger.error("Kein Channel gefunden.")
-                    print("Kein Channel gefunden.")
-                try:
-                    new_games = await epic_games_api.GetFreeGames()
-                except Exception as e:
-                    print(e)
-                    program_logger.error("Fehler beim abrufen der Epic Games.")
-                    print("Fehler beim abrufen der Epic Games.")
                     return
+    
+                try:
+                    new_games = await _fetch_games(platform)
+                except Exception as e:
+                    program_logger.error(f"Fehler beim Abrufen der {platform.capitalize()} Games: {e}")
+                    return
+    
                 embeds = []
-                recent_games = []
                 for game in new_games:
-                     c.execute("SELECT * FROM free_games WHERE TITEL_ID = ?", (game['id'],))
-                     if c.fetchone() is not None:
-                         continue
-                     if "mysterygame" in str(game['title']).lower().replace(' ', ''):
-                         continue
-                     if game['title'] not in [g['title'] for g in recent_games]:
-                            embed = discord.Embed(
-                                title = game['title'],
-                                url = game['link'],
-                                color = discord.Color.dark_gold(),
-                                timestamp = datetime.datetime.now(datetime.UTC)
-                            )
-                            embed.set_image(url=game['picture'])
-                            embed.add_field(name='Titel', value=game['title'], inline=False)
-                            embed.add_field(name='Beschreibung', value=game['description'], inline=False)
-                            embed.add_field(name='Link', value=game['link'], inline=False)
-                            embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '' )
-                            embeds.append(embed)
-                            c.execute("INSERT INTO free_games (TITEL_ID, DATUM) VALUES (?, ?)", (game['id'], int(time.time()),))
+                    c.execute("SELECT * FROM free_games WHERE TITEL_ID = ?", (game['id'],))
+                    if c.fetchone() is not None:
+                        continue
+    
+                    game_details = await _get_game_details(game, platform)
+                    if "mysterygame" in game_details['title'].lower().replace(' ', ''):
+                        continue
+                    if game_details['title'] not in [g['title'] for g in recent_list]:
+                        embed = discord.Embed(
+                            title=game_details['title'],
+                            url=game_details['url'],
+                            color=discord.Color.dark_gold(),
+                            timestamp=datetime.datetime.now(datetime.UTC)
+                        )
+                        embed.set_image(url=game_details['image_url'])
+                        embed.add_field(name='Titel', value=game_details['title'], inline=False)
+                        embed.add_field(name='Beschreibung', value=game_details['description'], inline=False)
+                        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+                        embeds.append(embed)
+                        c.execute("INSERT INTO free_games (TITEL_ID, DATUM) VALUES (?, ?)", (game['id'], int(time.time())))
+    
                 conn.commit()
                 if embeds:
                     await channel.send(embeds=embeds)
+    
             except Exception as e:
-                program_logger.error(f"Fehler beim senden der Epic Games. \n {e}")
-                print(f"Fehler beim senden der Epic Games. \nm {e}")
+                program_logger.error(f"Fehler beim Senden der {platform.capitalize()} Games: {e}")
+    
         while True:
-            await _function()
+            await _function("epic")
+            await _function("steam")
             try:
-                await asyncio.sleep(60*30)
+                await asyncio.sleep(60 * 30)
             except asyncio.CancelledError:
                 break
             
@@ -1473,63 +1494,10 @@ class Tasks():
             except asyncio.CancelledError:
                 break
             
-    async def FreeSteamGames():
-        async def _function():
-            global recent_steam_games
-            try:
-                c.execute("SELECT * FROM GUILD_SETTINGS WHERE GUILD_ID")
-                data = c.fetchone()
-                if data is None:
-                    program_logger.error("Keine GUILD_SETTINGS gefunden zu free_games.")
-                    return
-                channel = await Functions.get_or_fetch('channel', data[6])
-                if not channel:
-                    program_logger.debug("Channel 'FREE_GAMES_CHANNEL' nicht gefunden oder nicht angegeben.")
-                try:
-                    new_games = await Functions.GetSteamAppInfo()
-                except steam_errors.NotOK as e:
-                    program_logger.error(f'Fehler beim Abrufen der kostenlosen Spiele: {e}')
-                    return
-                embeds = []
-                recent_steam_games = []
-                current_time = datetime.datetime.now(datetime.UTC)
-                bot_avatar = bot.user.avatar.url if bot.user.avatar else ''
-                for game in new_games:
-                     c.execute("SELECT * FROM free_games WHERE TITEL_ID = ?", (game['id'],))
-                     if c.fetchone() is not None:
-                         continue
-                     if game['title'] not in [g['title'] for g in recent_steam_games]:
-                            embed = discord.Embed(
-                                title = game['title'],
-                                url = f'https://store.steampowered.com/app/{game['id']}',
-                                color = discord.Color.dark_gold()
-                            )
-                            embed.set_image(url=f'https://cdn.cloudflare.steamstatic.com/steam/apps/{game['id']}/header.jpg')
-                            embed.add_field(name='Titel', value=game['title'], inline=False)
-                            embed.add_field(name='Beschreibung', value=game['description'], inline=False)
-                            embed.add_field(name='Link', value=f'https://store.steampowered.com/app/{game['id']}', inline=False)
-                            embed.set_footer(text=FOOTER_TEXT, icon_url=bot_avatar)
-                            embed.timestamp = current_time
-                            embeds.append(embed)
-                            c.execute("INSERT INTO free_games (TITEL_ID, DATUM) VALUES (?, ?)", (game['id'], int(time.time()),))
-                conn.commit()
-                if embeds:
-                    await channel.send(embeds=embeds)
-            except Exception as e:
-                program_logger.error(f"Fehler beim senden der Steam Spiele. \n {e}")
-                print(f"Fehler beim senden der Steam Spiele. \nm {e}")
-        
-        while True:
-            await _function()
-            try:
-                await asyncio.sleep(60*30)
-            except asyncio.CancelledError:
-                break
-            
     async def check_team():
         async def _function():
             try:
-                guild = bot.get_guild(MAIN_GUILD)
+                guild = Functions.get_or_fetch('guild', MAIN_GUILD)
                 if guild:
                     embed = await Functions.update_team_embed(guild)
                     c.execute("SELECT * FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (guild.id,))
@@ -1549,7 +1517,6 @@ class Tasks():
                             await channel.send(embed=embed)
             except Exception as e:
                 program_logger.error(f"Fehler beim senden des Team Embeds. \n {e}")
-                print(f"Fehler beim senden des Team Embeds. \nm {e}")
                 
         while True:
             await _function()
@@ -1557,7 +1524,8 @@ class Tasks():
                 await asyncio.sleep(60*60)
             except asyncio.CancelledError:
                 break
-           
+          
+            
 class Owner():
     async def log(message, args):
         async def __wrong_selection():
@@ -1810,37 +1778,59 @@ async def self(interaction: discord.Interaction, amount: int):
 @discord.app_commands.checks.has_permissions(manage_channels=True)
 async def self(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
-    await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=False)
-    lock_eb = discord.Embed(
-        title='🔒 Lock',
-        description='Der Chat wurde gesperrt.',
-        color=discord.Color.green(),
-        timestamp=datetime.datetime.now(datetime.UTC)
-    )
-    lock_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
-    await interaction.followup.send(embed=lock_eb)
+    if interaction.channel.permissions_for(interaction.guild.default_role).send_messages == False:
+        lock_eb = discord.Embed(
+            title='🔒 Lock',
+            description='Der Chat ist bereits gesperrt.',
+            color=discord.Color.red(),
+            timestamp=datetime.datetime.now(datetime.UTC)
+        )
+        lock_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        await interaction.followup.send(embed=lock_eb)
+        return
+    else:
+        await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=False)
+        lock_eb = discord.Embed(
+            title='🔒 Lock',
+            description='Der Chat wurde gesperrt.',
+            color=discord.Color.green(),
+            timestamp=datetime.datetime.now(datetime.UTC)
+        )
+        lock_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        await interaction.followup.send(embed=lock_eb)
     
-
 @tree.command(name='unlock', description='Unlocks the chat.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(manage_channels=True)
 async def self(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
-    await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=True)
-    unlock_eb = discord.Embed(
-        title='🔓 Unlock',
-        description='Der Chat wurde entsperrt.',
-        color=discord.Color.green(),
-        timestamp=datetime.datetime.now(datetime.UTC)
-    )
-    unlock_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
-    await interaction.followup.send(embed=unlock_eb)
+    if interaction.channel.permissions_for(interaction.guild.default_role).send_messages == True:
+        unlock_eb = discord.Embed(
+            title='🔓 Unlock',
+            description='Der Chat ist bereits entsperrt.',
+            color=discord.Color.red(),
+            timestamp=datetime.datetime.now(datetime.UTC)
+        )
+        unlock_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        await interaction.followup.send(embed=unlock_eb)
+        return
+    else:
+        await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=True)
+        unlock_eb = discord.Embed(
+            title='🔓 Unlock',
+            description='Der Chat wurde entsperrt.',
+            color=discord.Color.green(),
+            timestamp=datetime.datetime.now(datetime.UTC)
+        )
+        unlock_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        await interaction.followup.send(embed=unlock_eb)
     
 @tree.command(name='kick', description='Kicks a user.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(kick_members=True)
-@discord.app_commands.describe(user='User to kick.')
-@discord.app_commands.describe(reason='Reason for the kick.')
+@discord.app_commands.describe(user='User to kick.',
+                               reason='Reason for the kick.'
+                               )
 async def self(interaction: discord.Interaction, user: discord.User, reason: str):
     await interaction.response.defer(ephemeral=True)
     await interaction.guild.kick(user, reason=reason)
@@ -1873,8 +1863,9 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
 @tree.command(name='ban', description='Bans a user.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(ban_members=True)
-@discord.app_commands.describe(user='User to ban.')
-@discord.app_commands.describe(reason='Reason for the ban.')
+@discord.app_commands.describe(user='User to ban.',
+                               reason='Reason for the ban.'
+                               )
 async def self(interaction: discord.Interaction, user: discord.User, reason: str):
     await interaction.response.defer(ephemeral=True)
     await interaction.guild.ban(user, reason=reason)
@@ -1907,8 +1898,9 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
 @tree.command(name='unban', description='Unbans a user.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(ban_members=True)
-@discord.app_commands.describe(user='User to unban.')
-@discord.app_commands.describe(reason='Reason for the unban.')
+@discord.app_commands.describe(user='User to unban.',
+                               reason='Reason for the unban.'
+                               )
 async def self(interaction: discord.Interaction, user: discord.User, reason: str):
     await interaction.response.defer(ephemeral=True)
     await interaction.guild.unban(user, reason=reason)
@@ -1985,43 +1977,46 @@ async def team_update(interaction: discord.Interaction, user: discord.Member, ro
         elif category.value == "leave":
             if discord_role in user.roles:
                 await user.remove_roles(discord_role)
-    
-        color = discord.Color.green() if category.value == "new_member" else discord.Color.red()
-        embed = discord.Embed(
-            title='**👥 Team Update**',
-            description="",
-            color=color,
-            timestamp=datetime.datetime.now(datetime.timezone.utc)
-        )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=interaction.guild.me.avatar.url)
-        embed.add_field(name='Team:', value=discord_role.name, inline=False)
-        embed.add_field(name='User:', value=user.mention, inline=False)
-        if category.value == "new_member":
-            embed.add_field(name='Willkommen:', value=f'🎉 Ist dem Team {discord_role.name} beigetreten. Wir hoffen auf eine gute Zusammenarbeit!', inline=False)
-        elif category.value == "leave":
-            embed.add_field(name='Danke:', value='👋 Wir danken für deine Arbeit und wünschen dir noch viel Spaß auf Gaming Networks.', inline=False)
-        
-    
-        guild_id = interaction.guild.id
-        c.execute("SELECT * FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (guild_id,))
-        guild = c.fetchone()
-    
-        if guild is None:
-            await interaction.response.send_message("Bitte konfiguriere den Bot zuerst.", ephemeral=True)
-            return
-    
-        team_update_channel = await bot.fetch_channel(guild[5])
-        await team_update_channel.send(embed=embed)
-        await interaction.response.send_message(f"Das Team wurde aktualisiert: {action_text}", ephemeral=True)
-    
     except discord.Forbidden:
         await interaction.response.send_message("Ich habe nicht die Berechtigung, diese Rolle hinzuzufügen oder zu entfernen.", ephemeral=True)
         return
+    
+    color = discord.Color.green() if category.value == "new_member" else discord.Color.red()
+    embed = discord.Embed(
+        title='**👥 Team Update**',
+        description="",
+        color=color,
+        timestamp=datetime.datetime.now(datetime.timezone.utc)
+    )
+    embed.set_footer(text=FOOTER_TEXT, icon_url=interaction.guild.me.avatar.url)
+    embed.add_field(name='Team:', value=discord_role.name, inline=False)
+    embed.add_field(name='User:', value=user.mention, inline=False)
+    if category.value == "new_member":
+        embed.add_field(name='Willkommen:', value=f'🎉 Ist dem Team {discord_role.name} beigetreten. Wir hoffen auf eine gute Zusammenarbeit!', inline=False)
+    elif category.value == "leave":
+        embed.add_field(name='Danke:', value='👋 Wir danken für deine Arbeit und wünschen dir noch viel Spaß auf Gaming Networks.', inline=False)
+    
+    
+    guild_id = interaction.guild.id
+    c.execute("SELECT * FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (guild_id,))
+    guild = c.fetchone()
+    
+    if guild is None:
+        await interaction.response.send_message("Bitte konfiguriere den Bot zuerst.", ephemeral=True)
+        return
+    
+    team_update_channel = await bot.fetch_channel(guild[5])
+    await team_update_channel.send(embed=embed)
+    await interaction.response.send_message(f"Das Team wurde aktualisiert: {action_text}", ephemeral=True)
+    
      
 @tree.command(name = 'register_server', description = 'register a Server')
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(administrator = True)
-@discord.app_commands.describe(host='ip address of the server.', port='server port.', passwd='rcon password of the server.')
+@discord.app_commands.describe(host='ip address of the server.',
+                               port='server port.',
+                               passwd='rcon password of the server.'
+                               )
 async def self(interaction: discord.Interaction, host: str, port: int, passwd: str):
     await interaction.response.defer(ephemeral=True)
     c.execute("SELECT * FROM SERVER WHERE GUILD = ? AND HOST = ? AND PORT = ? AND PASS = ?", (interaction.guild_id, host, port, passwd))
@@ -2042,7 +2037,9 @@ async def self(interaction: discord.Interaction, host: str, port: int, passwd: s
 @tree.command(name = 'send_panel', description = 'send the panel into a channel.')
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(administrator = True)
-@discord.app_commands.describe(entry_id='panel id.', channel='In which channel should the panel send.')
+@discord.app_commands.describe(entry_id='panel id.',
+                               channel='In which channel the panel should be send.'
+                               )
 async def self(interaction: discord.Interaction, entry_id: int, channel: discord.TextChannel):
     async def _pannel_send():
         c.execute("SELECT * FROM SERVER WHERE ID = ?", (entry_id,))
@@ -2071,7 +2068,9 @@ async def self(interaction: discord.Interaction, entry_id: int, channel: discord
     await interaction.response.defer(ephemeral=True)
     c.execute("SELECT * FROM EMBEDS WHERE GUILD = ? AND CHANNEL = ? AND SERVER_ID = ?", (interaction.guild_id, channel.id, entry_id))
     message_id = c.fetchone()
-    if message_id is not None:
+    if message_id is None:
+        await _pannel_send()
+    else:
         channel = await Functions.get_or_fetch('channel', channel.id)
         try:
             message = await channel.fetch_message(message_id[3])
@@ -2084,8 +2083,6 @@ async def self(interaction: discord.Interaction, entry_id: int, channel: discord
             return
         else:
             await _pannel_send()
-    else:
-        await _pannel_send()
 
 @tree.command(name = 'list_servers', description = 'list of all registered servers.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
@@ -2128,7 +2125,9 @@ async def self(interaction: discord.Interaction, entry_id: int):
             c.execute("DELETE FROM EMBEDS WHERE SERVER_ID = ?", (entry_id,))
             conn.commit()
             await interaction.response.send_message(content=f"Server mit der ID {entry_id} erfolgreich entfernt.", ephemeral=True)
+           
             
+
 class TicketDropdown(discord.ui.Select):
         def __init__(self):
             options = [
@@ -2145,7 +2144,6 @@ class TicketDropdown(discord.ui.Select):
             category = self.values[0]
             modal = TicketModal(category, interaction.user)
             await interaction.response.send_modal(modal)
-
 
 class TicketSystemView(discord.ui.View):
         def __init__(self):
@@ -2226,7 +2224,7 @@ class TicketModal(discord.ui.Modal):
 @tree.command(name='create_ticketsystem', description='creates the ticketsystem.')
 @discord.app_commands.checks.cooldown(1, 2, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(administrator=True)
-@discord.app_commands.describe(channel='In which channel should the ticketsystem.')
+@discord.app_commands.describe(channel='In which channel the ticketsystem should be.')
 async def self(interaction: discord.Interaction, channel: discord.TextChannel):
     bot_avatar = bot.user.avatar.url if bot.user.avatar else ''
     ticketsystem_embed = discord.Embed(
@@ -2260,7 +2258,7 @@ async def self(interaction: discord.Interaction):
         conn.commit()
         await interaction.followup.send(content=f'Ticket Channel wurde erfolgreich entfernt.', ephemeral=True)
 
-@tree.command(name = 'send_pannel', description = 'Send pannel to varification channel.')
+@tree.command(name = 'verify_send_pannel', description = 'Send pannel to varification channel.')
 @discord.app_commands.checks.has_permissions(manage_guild = True)
 async def self(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral= True)
@@ -2341,7 +2339,7 @@ async def self(interaction: discord.Interaction):
     conn.commit()
     await interaction.followup.send(f'The verification panel has been sent to <#{verify_channel_id}>.', ephemeral = True)
 
-@tree.command(name = 'setup_verify', description = 'Setup the server for the bot.')
+@tree.command(name = 'verify_setup', description = 'Setup the server for the bot.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(manage_guild = True)
 @discord.app_commands.describe(verify_channel = 'Channel for the verification message.',
@@ -2350,7 +2348,8 @@ async def self(interaction: discord.Interaction):
                                timeout = 'After that timeframe the action gets executed.',
                                action = 'Action that gets executed after timeout.',
                                ban_time = 'Time a user gets banned for if action is ban. Leave empty for perma ban. (1d / 1h / 1m / 1s)',
-                               account_age = 'Account age required to join the server.')
+                               account_age = 'Account age required to join the server.'
+                               )
 @discord.app_commands.choices(timeout = [
     discord.app_commands.Choice(name = '5 Minutes', value = 300),
     discord.app_commands.Choice(name = '10 Minutes', value = 600),
@@ -2480,9 +2479,9 @@ async def verify_user(interaction: discord.Interaction, member: discord.Member):
             else:
                 await interaction.response.send_message(f'{member.mention} is already verified or is a bot.', ephemeral=True)
         else:
-            await interaction.response.send_message('There are no settings for this server.\nUse `/setup` to set-up this server.', ephemeral=True)
+            await interaction.response.send_message('There are no settings for this server.\nUse `/verify_setup` to set-up this server.', ephemeral=True)
     else:
-        await interaction.response.send_message('There are no settings for this server.\nUse `/setup` to set-up this server.', ephemeral=True)
+        await interaction.response.send_message('There are no settings for this server.\nUse `/verify_setup` to set-up this server.', ephemeral=True)
 
 if __name__ == '__main__':
     if sys.version_info < (3, 11):

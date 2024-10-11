@@ -3,7 +3,7 @@ FROM python:3.12-alpine
 WORKDIR /app
 
 COPY CustomModules ./CustomModules
-COPY GF-Sys ./GF-Sys
+COPY teams.json .
 COPY *.py .
 COPY requirements.txt .
 
