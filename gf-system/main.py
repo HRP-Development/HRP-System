@@ -911,9 +911,6 @@ class aclient(discord.AutoShardedClient):
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
         if self.initialized:
             return
-        program_logger.info(r'''
-        
-        ''')
         global start_time
         start_time = datetime.datetime.now(datetime.UTC)
         program_logger.info(f"Fertig geladen in {time.time() - startupTime_start:.2f} Sekunden.")
