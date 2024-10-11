@@ -11,8 +11,6 @@ jobs:
     services:
       docker:
         image: docker:dind
-        options: > 
-          --network host
 
     steps:
       - name: Check out repository code
