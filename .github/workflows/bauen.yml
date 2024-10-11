@@ -10,9 +10,8 @@ jobs:
     runs-on: self-hosted
     services:
       docker:
-        image: docker:20.10.7-dind
+        image: docker:dind
         options: > 
-          --privileged
           --network host
 
     steps:
