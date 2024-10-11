@@ -11,6 +11,7 @@ import jsonschema
 import os
 import platform
 import random
+import sentry_sdk
 import signal
 import sys
 import sqlite3
@@ -59,6 +60,15 @@ STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 MAIN_GUILD = os.getenv('MAINGUILD')
 LOG_CHANNEL = int(l_channel) if l_channel else None
     
+#Init sentry
+sentry_sdk.init(
+    dsn=os.getenv('SENTRY_DSN'),
+    traces_sample_rate=1.0,
+    profiles_sample_rate=1.0,
+    environment='Production',
+    release=f'GF-System@{BOT_VERSION}'
+)
+
 log_manager = log_handler.LogManager(LOG_FOLDER, BOT_NAME, LOG_LEVEL)
 discord_logger = log_manager.get_logger('discord')
 program_logger = log_manager.get_logger('Program')
