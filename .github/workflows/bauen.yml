@@ -35,11 +35,11 @@ jobs:
         with:
           context: .
           push: ${{ github.ref == 'refs/heads/master' }} 
-          cache-from: type=registry,ref=ghcr.io/python-discord/bot:latest
+          cache-from: type=registry,ref=ghcr.io/gaming-network/gn-system:latest
           cache-to: type=inline
           tags: |
-            ghcr.io/python-discord/bot:latest
-            ghcr.io/python-discord/bot:${{ github.sha }}
+            ghcr.io/gaming-network/gn-system:latest
+            ghcr.io/gaming-network/gn-system:${{ github.sha }}
           build-args: |
             git_sha=${{ github.sha }}
 
