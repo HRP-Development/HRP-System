@@ -34,7 +34,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
+          file: ../../gf-system/Dockerfile
           push: ${{ github.ref == 'refs/heads/master' }} 
           cache-from: type=registry,ref=ghcr.io/python-discord/bot:latest
           cache-to: type=inline
