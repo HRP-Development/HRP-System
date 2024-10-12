@@ -57,7 +57,7 @@ PUBLIC_IP = os.getenv('PUBLIC_IP')
 HTTP_PORT = os.getenv('HTTP_PORT')
 l_channel = os.getenv('LOG_CHANNEL')
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
-MAIN_GUILD = os.getenv('MAINGUILD')
+MAIN_GUILD = int(os.getenv('MAINGUILD'))
 LOG_CHANNEL = int(l_channel) if l_channel else None
     
 #Init sentry
@@ -134,12 +134,13 @@ validator.validate_and_fix_json()
 class aclient(discord.AutoShardedClient):
     def __init__(self):
 
-        intents = discord.Intents.default()
-        intents.members = True
-        intents.guilds = True
-        intents.dm_messages = True
-        intents.message_content = True
-        intents.guild_messages = True
+        # intents = discord.Intents.default()
+        # intents.members = True
+        # intents.guilds = True
+        # intents.dm_messages = True
+        # intents.message_content = True
+        # intents.guild_messages = True
+        intents = discord.Intents.all()
 
         super().__init__(owner_id = OWNERID,
                               intents = intents,
@@ -959,12 +960,13 @@ class Functions():
         data = image_captcha.generate(captcha_text)
         return io.BytesIO(data.read()), captcha_text
 
-    def load_teams_json():
+    def load_teams():
         try:
-            with open('teams.json', 'r', encoding='utf-8-sig') as f:
+            with open(f'teams.json', 'r', encoding='utf-8-sig') as f:
                 return json.load(f)
         except Exception as e:
             program_logger.error(f'Fehler beim laden der Teams: {e}')
+            print(f'Fehler beim laden der Teams: {e}')
             return {}
     
     async def verify(interaction: discord.Interaction):
@@ -1316,21 +1318,30 @@ class Functions():
         return data
     
     async def update_team_embed(guild):
-        teams_data = Functions.load_teams_json()
-        embed = discord.Embed(
-            title="Das Team", 
-            description="", 
-            color=discord.Color.dark_orange(),
-            timestamp=datetime.datetime.now(datetime.UTC)
-        )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        teams_data = Functions.load_teams()
+        embeds = []
+        
         for team in teams_data["teams"]:
-            role = guild.get_role(team["role_id"])
+            role: discord.Role = guild.get_role(team["role_id"])
+            
             if role and role.members:
-                members = '\n'.join([f"{member.display_name}" for member in role.members])
-                embed.add_field(name=f"**{team['role_name']}**", value=members, inline=False)
-
-        return embed
+                members = '\n'.join([f"{member.mention}" for member in role.members])
+                
+                embed = discord.Embed(
+                    title=f"{role.name}",
+                    description=members,
+                    color=discord.Color.dark_orange(),
+                    timestamp=datetime.datetime.now(datetime.UTC)
+                )
+                
+                embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        
+                if role.icon:
+                    embed.set_thumbnail(url=role.icon.url)
+        
+                embeds.append(embed)
+        
+        return embeds
     
     async def check_message(message: discord.Message):
         """
@@ -1436,6 +1447,8 @@ class Tasks():
                     program_logger.error(f"Fehler beim Updaten des Panels: {panel}")
                     continue
 
+        while not bot.initialized:
+            await asyncio.sleep(5)
         while True:
             await _function()
             try:
@@ -1518,6 +1531,8 @@ class Tasks():
             except Exception as e:
                 program_logger.error(f"Fehler beim Senden der {platform.capitalize()} Games: {e}")
     
+        while not bot.initialized:
+            await asyncio.sleep(5)
         while True:
             await _function("epic")
             await _function("steam")
@@ -1537,7 +1552,9 @@ class Tasks():
                 entry_id = entry[2]
                 c.execute("DELETE FROM free_games WHERE DATUM = ?", (entry_id,))
                 conn.commit()
-                
+          
+        while not bot.initialized:
+            await asyncio.sleep(5)
         while True:
             await _function()
             try:
@@ -1548,9 +1565,9 @@ class Tasks():
     async def check_team():
         async def _function():
             try:
-                guild = await Functions.get_or_fetch('guild', MAIN_GUILD)
+                guild = bot.get_guild(MAIN_GUILD)
                 if guild:
-                    embed = await Functions.update_team_embed(guild)
+                    embeds = await Functions.update_team_embed(guild)
                     c.execute("SELECT * FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (guild.id,))
                     data = c.fetchone()
                     if data is None:
@@ -1562,13 +1579,15 @@ class Tasks():
                         last_message = last_message[0] if last_message else None
 
                         if last_message and last_message.embeds and isinstance(last_message.embeds[0], discord.Embed):
-                            if last_message.embeds[0].to_dict() != embed.to_dict():
-                                await last_message.edit(embed=embed)
+                            await last_message.edit(embeds=embeds)
                         else:
-                            await channel.send(embed=embed)
+                            await channel.send(embeds=embeds)
             except Exception as e:
                 program_logger.error(f"Fehler beim senden des Team Embeds. \n {e}")
-                
+                print(f"Fehler beim senden des Team Embeds. \n {e}")
+        
+        while not bot.initialized:
+            await asyncio.sleep(5)
         while True:
             await _function()
             try:
@@ -2085,7 +2104,7 @@ async def self(interaction: discord.Interaction, host: str, port: int, passwd: s
             ID = c.fetchone()[0]
             await interaction.followup.send(content=f"Server registered successfully.\n You can now use `/send_panel` with ID {ID}, to send it to a channel.", ephemeral=True)
 
-@tree.command(name = 'send_panel', description = 'send the panel into a channel.')
+@tree.command(name = 'send_panel_server', description = 'send the panel into a channel.')
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(administrator = True)
 @discord.app_commands.describe(entry_id='panel id.',
@@ -2533,6 +2552,10 @@ async def verify_user(interaction: discord.Interaction, member: discord.Member):
             await interaction.response.send_message('There are no settings for this server.\nUse `/verify_setup` to set-up this server.', ephemeral=True)
     else:
         await interaction.response.send_message('There are no settings for this server.\nUse `/verify_setup` to set-up this server.', ephemeral=True)
+
+
+
+
 
 if __name__ == '__main__':
     if sys.version_info < (3, 11):
