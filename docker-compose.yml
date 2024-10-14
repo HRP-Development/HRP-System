@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  dbdstats:
+  bot:
     container_name: GF-System
     deploy:
       restart_policy:
@@ -14,7 +14,7 @@ services:
       LOG_CHANNEL:
       STEAM_API_KEY:
       MAINGUILD:
-    image: ghcr.io/gaming-network/gf-system
+    image: ghcr.io/gaming-network/gn-system
     volumes:
       - data:/app/GF-Sys
     healthcheck:
