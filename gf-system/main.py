@@ -134,13 +134,12 @@ validator.validate_and_fix_json()
 class aclient(discord.AutoShardedClient):
     def __init__(self):
 
-        # intents = discord.Intents.default()
-        # intents.members = True
-        # intents.guilds = True
-        # intents.dm_messages = True
-        # intents.message_content = True
-        # intents.guild_messages = True
-        intents = discord.Intents.all()
+        intents = discord.Intents.default()
+        intents.members = True
+        intents.guilds = True
+        intents.dm_messages = True
+        intents.message_content = True
+        intents.guild_messages = True
 
         super().__init__(owner_id = OWNERID,
                               intents = intents,
@@ -966,7 +965,6 @@ class Functions():
                 return json.load(f)
         except Exception as e:
             program_logger.error(f'Fehler beim laden der Teams: {e}')
-            print(f'Fehler beim laden der Teams: {e}')
             return {}
     
     async def verify(interaction: discord.Interaction):
@@ -1584,7 +1582,6 @@ class Tasks():
                             await channel.send(embeds=embeds)
             except Exception as e:
                 program_logger.error(f"Fehler beim senden des Team Embeds. \n {e}")
-                print(f"Fehler beim senden des Team Embeds. \n {e}")
         
         while not bot.initialized:
             await asyncio.sleep(5)

@@ -1,6 +1,4 @@
 from datetime import datetime
-import os
-import asyncio
 
 class TicketHTML:
     def __init__(self):
