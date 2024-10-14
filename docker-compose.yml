@@ -2,21 +2,21 @@ version: '3'
 
 services:
   dbdstats:
-    container_name: Basis
-    ports:
-      - "5000:5000"
+    container_name: GF-System
     deploy:
       restart_policy:
         condition: any
     environment:
-      SENTRY_DSN: SENTRY_DSN_FOR_ERROR_REPORTING
-      support_server: ID_OF_SUPPORTSERVER
-      TOKEN: BOT_TOKEN
-      OWNER_ID: DISCORD_ID_OF_OWNER
+      SENTRY_DSN:
+      TOKEN:
+      OWNER_ID:
       LOG_LEVEL: INFO
-    image: serpensin/basis
+      LOG_CHANNEL:
+      STEAM_API_KEY:
+      MAINGUILD:
+    image: ghcr.io/gaming-network/gf-system
     volumes:
-      - log:/app/Basis
+      - data:/app/GF-Sys
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
@@ -25,4 +25,4 @@ services:
       start_period: 20s
 
 volumes:
-    log:
+    data:
