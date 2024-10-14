@@ -27,6 +27,7 @@ from CustomModules.ticket import TicketHTML as TicketSystem
 from CustomModules.epic_games_api import Errors as epic_errors
 from CustomModules import epic_games_api
 
+from aiohttp import web
 from rcon import source
 from dotenv import load_dotenv
 from typing import Optional, Any
@@ -906,6 +907,7 @@ class aclient(discord.AutoShardedClient):
         bot.loop.create_task(Tasks.CheckGameDuration())
         bot.loop.create_task(Tasks.CheckFreeGames())
         bot.loop.create_task(Tasks.check_team())
+        bot.loop.create_task(Tasks.health_server())
 
     async def on_ready(self):
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
@@ -1591,6 +1593,23 @@ class Tasks():
                 await asyncio.sleep(60*60)
             except asyncio.CancelledError:
                 break
+
+    async def health_server():
+        async def __health_check(request):
+            return web.Response(text="Healthy")
+
+        app = web.Application()
+        app.router.add_get('/health', __health_check)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', 5000)
+        try:
+            await site.start()
+        except OSError as e:
+            program_logger.warning(f'Error while starting health server: {e}')
+            program_logger.debug(f'Error while starting health server: {e}')
+
+
           
             
 class Owner():
