@@ -892,8 +892,6 @@ class aclient(discord.AutoShardedClient):
                     await channel.send(embed=welcome_embed)
                 except Exception as e:
                     program_logger.error(f"Error while sending welcome message: {e}")
-            else:
-                program_logger.error("Keine Gildeinstellungen gefunden.")
                 
     async def on_member_remove(self, member: discord.Member):
         member_anzahl = len(member.guild.members)
@@ -913,8 +911,6 @@ class aclient(discord.AutoShardedClient):
                 await channel.send(embed=leave_embed)
             except Exception as e:
                    program_logger.error(f"Error while sending leave message: {e}")
-        else:
-            program_logger.error("Keine Gildeinstellungen gefunden.")
             
         
     async def setup_hook(self):
@@ -1540,12 +1536,11 @@ class Tasks():
                 c.execute("SELECT * FROM GUILD_SETTINGS")
                 data = c.fetchall()
                 if not data:
-                    program_logger.error("Keine Gildeneinstellungen gefunden.")
                     return
     
                 channel = await Functions.get_or_fetch('channel', data[0][6])
                 if not channel:
-                    program_logger.error("Kein Channel gefunden.")
+                    program_logger.warning("Kein Channel gefunden.")
                     return
     
                 try:
@@ -1624,7 +1619,6 @@ class Tasks():
                     c.execute("SELECT * FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (guild.id,))
                     data = c.fetchone()
                     if data is None:
-                        program_logger.error("Keine Gildeneinstellungen gefunden.")
                         return
                     channel = await Functions.get_or_fetch('channel', data[7])
                     if channel:
