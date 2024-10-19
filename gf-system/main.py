@@ -462,18 +462,11 @@ class aclient(discord.AutoShardedClient):
             elif interaction.data and interaction.data.get('component_type') == 2: #2 ist Button
                 button_id = interaction.data.get('custom_id')
                 if button_id == ("close_ticket"):
-
-
-
-                    view = interaction.message.components
                     updated_view = discord.ui.View.from_message(interaction.message)
-
                     for item in updated_view.children:
                         if isinstance(item, discord.ui.Button) and item.custom_id == "close_ticket":
-                            item.disabled = True
-                    
+                            item.disabled = True                   
                     await interaction.message.edit(view=updated_view)
-
 
                     channel = interaction.channel
                     c.execute('SELECT * FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
