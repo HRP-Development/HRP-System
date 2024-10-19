@@ -425,7 +425,7 @@ class aclient(discord.AutoShardedClient):
                         discord.SelectOption(label="Report", description="Melde einen Nutzer auf dem Discord"),
                         discord.SelectOption(label="Support", description="Für technische Hilfe"),
                         discord.SelectOption(label="Bug", description="Falls du einen Bug gefunden hast"),
-                        discord.SelectOption(label="Feedback", description="Falls du Feedback an Gaming Networks hast"),
+                        discord.SelectOption(label="Feedback", description="Falls du Feedback an HRP hast"),
                         discord.SelectOption(label="Sonstiges", description="Für alles andere"),
                     ]
                     super().__init__(placeholder="Wähle ein Ticket-Thema aus.", options=options, min_values=1, max_values=1, custom_id="support_menu")
@@ -1427,7 +1427,7 @@ class Functions():
                 value=message.content,
                 inline=False
             )
-            emb.set_footer(text='Gaming Networks | System', icon_url=guild.icon.url)
+            emb.set_footer(text='HRP | System', icon_url=guild.icon.url)
             try:
                 await message.author.send(embed=emb)
             except discord.Forbidden:
@@ -2143,7 +2143,7 @@ async def team_update(interaction: discord.Interaction, user: discord.Member, ro
     if category.value == "new_member":
         embed.add_field(name='Willkommen:', value=f'🎉 Ist dem Team {discord_role.name} beigetreten. Wir hoffen auf eine gute Zusammenarbeit!', inline=False)
     elif category.value == "leave":
-        embed.add_field(name='Danke:', value='👋 Wir danken für deine Arbeit und wünschen dir noch viel Spaß auf Gaming Networks.', inline=False)
+        embed.add_field(name='Danke:', value='👋 Wir danken für deine Arbeit und wünschen dir noch viel Spaß auf der HRP Community.', inline=False)
     
     
     guild_id = interaction.guild.id
