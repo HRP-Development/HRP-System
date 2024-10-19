@@ -24,7 +24,6 @@ from CustomModules.steam_api import Errors as steam_errors
 from CustomModules.bad_words import BadWords
 from CustomModules import context_commands
 from CustomModules.ticket import TicketHTML as TicketSystem
-from CustomModules.epic_games_api import Errors as epic_errors
 from CustomModules import epic_games_api
 
 from aiohttp import web
@@ -47,8 +46,8 @@ os.makedirs(f'{APP_FOLDER_NAME}//Buffer', exist_ok=True)
 LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
-SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{APP_FOLDER_NAME}.db')
-BOT_VERSION = "1.0.0"
+SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
+BOT_VERSION = "1.1.0"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')

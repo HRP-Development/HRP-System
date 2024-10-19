@@ -16,7 +16,7 @@ services:
       MAINGUILD:
     image: ghcr.io/gaming-network/gn-system
     volumes:
-      - data:/app/GF-Sys
+      - data:/app/HRP-Sys
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
