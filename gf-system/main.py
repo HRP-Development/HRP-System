@@ -871,14 +871,14 @@ class aclient(discord.AutoShardedClient):
             member_anzahl = len(member.guild.members) 
             welcome_embed = discord.Embed(
                 title='👋 Willkommen',
-                description=f'Willkommen auf dem Server {member.guild.name}, {member.mention}!\n Wir sind nun {member_anzahl} Member',
+                description=f'Willkommen auf dem Server {member.guild.name}, {member.mention}!\nWir sind nun {member_anzahl} Member.',
                 color=discord.Color.green(),
                 timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
             welcome_embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
             welcome_embed.set_thumbnail(url=member.avatar.url if member.avatar else '')
     
-            guild = c.execute("SELECT leave_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (member.guild.id,)).fetchone()
+            guild = c.execute("SELECT welcome_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (member.guild.id,)).fetchone()
             if guild is not None:
                 channel = await Functions.get_or_fetch('channel', guild[0])
                 try:
@@ -890,7 +890,7 @@ class aclient(discord.AutoShardedClient):
         member_anzahl = len(member.guild.members)
         leave_embed = discord.Embed(
             title='👋 Auf Wiedersehen',
-            description=f'{member.mention} hat den Server verlassen.\n Wir sind nun {member_anzahl} Member',
+            description=f'{member.mention} hat den Server verlassen.\nWir sind nun {member_anzahl} Member.',
             color=discord.Color.red(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
