@@ -1,28 +1,24 @@
 ﻿{
   "teams": [
     {
-      "role_name": "👑 Owner",
-      "role_id": 1289357325127385262
+      "role_name": "👑 Community Leiter",
+      "role_id": 1212156846266122290
     },
     {
-      "role_name": "🧑🏻‍💼 Communitymanager",
-      "role_id": 1289357325118869532
-    },
-    {
-      "role_name": "🧑🏻‍💼 Projektleiter",
-      "role_id": 1289551806606868562
+      "role_name": "🧑🏻‍💼 Community Leitung",
+      "role_id": 909553645140451368
     },
     {
       "role_name": "🖥️ Systemverwaltung",
-      "role_id": 1291332869444079707
-    },
-    {
-      "role_name": "🛠️ Head Developer",
-      "role_id": 1289357325118869527
+      "role_id": 1296898655441260564
     },
     {
       "role_name": "🔧 Developer",
-      "role_id": 1289542815289835570
+      "role_id": 1296913799705661450
+    },
+    {
+      "role_name": "🎨 Designer",
+      "role_id": 933407856479318036
     },
     {
       "role_name": "🗡️ TTT Team",
@@ -34,7 +30,11 @@
     },
     {
       "role_name": "⚔️ Jedi vs Sith Team",
-      "role_id": 1289357325106417711
+      "role_id": 909553645102727202
+    },
+    {
+      "role_name": "🔧 Discord Verwaltung",
+      "role_id": 1212475832078180452
     }
   ]
 }

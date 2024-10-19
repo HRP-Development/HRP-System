@@ -228,7 +228,7 @@ class TicketHTML:
                 </body>
                 </html>
                 """
-                APP_FOLDER_NAME = 'GF-Sys'
+                APP_FOLDER_NAME = 'HRP-Sys'
                 BUFFER_FOLDER = f'{APP_FOLDER_NAME}/Buffer/'
                 ticket_path = f"{BUFFER_FOLDER}ticket-{channel_id}.html"
                 with open(f"{ticket_path}", "w", encoding='utf-8') as file:

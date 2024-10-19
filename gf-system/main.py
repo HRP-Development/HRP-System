@@ -39,9 +39,9 @@ from pytimeparse.timeparse import timeparse
 discord.VoiceClient.warn_nacl = False
 load_dotenv()
 image_captcha = ImageCaptcha()
-APP_FOLDER_NAME = 'GF-Sys'
-BOT_NAME = 'GF-Sys'
-FOOTER_TEXT = 'Gaming Networks | System'
+APP_FOLDER_NAME = 'HRP-Sys'
+BOT_NAME = 'HRP-Sys'
+FOOTER_TEXT = 'HRP | System'
 os.makedirs(f'{APP_FOLDER_NAME}//Logs', exist_ok=True)
 os.makedirs(f'{APP_FOLDER_NAME}//Buffer', exist_ok=True)
 LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
@@ -67,7 +67,7 @@ sentry_sdk.init(
     traces_sample_rate=1.0,
     profiles_sample_rate=1.0,
     environment='Production',
-    release=f'GF-System@{BOT_VERSION}'
+    release=f'HRP-System@{BOT_VERSION}'
 )
 
 log_manager = log_handler.LogManager(LOG_FOLDER, BOT_NAME, LOG_LEVEL)
@@ -105,8 +105,8 @@ class JSONValidator:
 
     default_content = {
         "activity_type": "Watching",
-        "activity_title": "Über die Gaming Network Infrastruktur",
-        "activity_url": "https://status.gaming-networks.net",
+        "activity_title": "Über die HRP Infrastruktur",
+        "activity_url": "https://status.hrp-community.net",
         "status": "dnd"
     }
 
@@ -441,6 +441,15 @@ class aclient(discord.AutoShardedClient):
                     self.add_item(TicketDropdown())
                     if not self.initialized:
                         return
+                    
+            # class ChannelManagementView(discord.ui.View):
+            #    def __init__(self, channel, owner):
+            #        super().__init__(timeout=None)
+            #        self.channel = channel
+            #        self.owner = owner
+                   
+            #    async def add_user(self, interaction: discord.Interaction, button: discord.ui.Button):
+            #        pass
 
             if interaction.data and interaction.data.get('component_type') == 3: #3 ist Dropdown
                 button_id = interaction.data.get('custom_id')
@@ -468,10 +477,10 @@ class aclient(discord.AutoShardedClient):
                             if user.bot:
                                 continue
                             try:
-                                 await user.send(file=discord.File(f'GF-Sys/Buffer/ticket-{interaction.channel.id}.html'))
+                                 await user.send(file=discord.File(f'{BUFFER_FOLDER}/ticket-{interaction.channel.id}.html'))
                             except Exception as e:
                                 program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')   
-                   await asyncio.sleep(5)
+                   await asyncio.sleep(4)
                    os.remove(f'{BUFFER_FOLDER}ticket-{interaction.channel.id}.html')
                    c.execute('DELETE FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
                    conn.commit()
@@ -787,6 +796,24 @@ class aclient(discord.AutoShardedClient):
             embed.add_field(name="Änderungen:", value="\n".join(changes), inline=False)
             ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
             await ca.send(embed=embed)
+            
+    # async def on_voice_state_update(member, before, after):
+    #     guild = member.guild
+        
+    #     if after.channel and after.channel.name == channel_sys_name:
+    #         private_channel = await Functions.create_private_voice_channel(member)
+            
+    #         await member.move_to(private_channel)
+            
+    #         embed = discord.Embed(
+    #             title="Channel Verwaltung",
+    #             description="Nutze die unteren Buttons um den Channel zu verwalten.",
+    #             timestamp=datetime.datetime.now(datetime.timezone.utc),
+    #             color=discord.Color.dark_gold(),
+    #         )
+    #         view = ChannelManagementView(private_channel, member)
+            
+    #         await private_channel.send(embed=embed, view=view)
 
     async def on_message(self, message):
         async def __wrong_selection():
@@ -908,6 +935,8 @@ class aclient(discord.AutoShardedClient):
         bot.loop.create_task(Tasks.CheckFreeGames())
         bot.loop.create_task(Tasks.check_team())
         bot.loop.create_task(Tasks.health_server())
+        
+        await Functions.ChannelSystem()
 
     async def on_ready(self):
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
@@ -968,6 +997,18 @@ class Functions():
         except Exception as e:
             program_logger.error(f'Fehler beim laden der Teams: {e}')
             return {}
+        
+    async def ChannelSystem():
+        global channel_sys_name
+        channel_sys_name = "🆕 Erstelle hier einen Channel"        
+        for guild in bot.guilds:
+            existing_channel = discord.utils.get(guild.voice_channels, name=channel_sys_name)
+            if existing_channel is None:
+                overwrites = {
+                    guild.default_role: discord.PermissionOverwrite(connect=False),
+                    guild.me: discord.PermissionOverwrite(connect=True)
+                }
+                await guild.create_voice_channel(channel_sys_name, overwrites=overwrites)
     
     async def verify(interaction: discord.Interaction):
         class CaptchaInput(discord.ui.Modal, title = 'Verification'):
@@ -1809,6 +1850,11 @@ async def self(interaction: discord.Interaction, welcome_channel: discord.TextCh
             timestamp=datetime.datetime.now(datetime.UTC)
             )
         erfolgreich.set_footer(text = FOOTER_TEXT, icon_url = bot.user.avatar.url if bot.user.avatar else '')
+        channel_name = "🆕 Erstelle hier einen Channel"
+        overwrites = [
+            
+        ]
+        channel = await guild.create_voice_channel(channel_name)
         await interaction.followup.send(embed = erfolgreich)
     else:
         warning = discord.Embed(
@@ -2020,16 +2066,26 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
 @discord.app_commands.checks.has_permissions(manage_roles=True)
 @discord.app_commands.describe(user='User')
 @discord.app_commands.choices(role=[
-    discord.app_commands.Choice(name="Projektleiter", value="projektleiter"),
-    discord.app_commands.Choice(name="Communitymanager", value="communitymanager"),
-    discord.app_commands.Choice(name="Discord Leitung", value="discord_leitung"),
-    discord.app_commands.Choice(name="Forum Leitung", value="forum_leitung"),
-    discord.app_commands.Choice(name="Head Developer", value="head_developer"),
+    discord.app_commands.Choice(name="Community Verwaltung", value="communityverwaltung"),
+    discord.app_commands.Choice(name="Community Leitung", value="Communityleitung"),
+    discord.app_commands.Choice(name="Infrastruktur Verwaltung", value="Infrastruktur_Verwaltung"),
+    discord.app_commands.Choice(name="Stv. Projektleitung", value="Stv_Projektleiter"),
+    ############################################################################################
+    discord.app_commands.Choice(name="Jedi vs Sith - Verwaltung", value="jvs_verwaltung"),
+    discord.app_commands.Choice(name="Jedi vs Sith - Stv. Teamleitung", value="jvs_stv_teamleitung"),
+    discord.app_commands.Choice(name="Jedi vs Sith - S-Admin", value="jvs_s_admin"),
+    discord.app_commands.Choice(name="Jedi vs Sith - Admin", value="jvs_admin"),
+    discord.app_commands.Choice(name="Jedi vs Sith - Team", value="jvs_team"),
+    discord.app_commands.Choice(name="Jedi vs Sith - Developer", value="jvs_dev"),
+    ############################################################################################
     discord.app_commands.Choice(name="Developer", value="developer"),
-    discord.app_commands.Choice(name="Admin Team", value="admin_team"),
-    discord.app_commands.Choice(name="Jedi vs Sith Team", value="jvs_team"),
-    discord.app_commands.Choice(name="Forum Team", value="forum_team"),
-    discord.app_commands.Choice(name="Discord Team", value="discord_team"),
+    discord.app_commands.Choice(name="Grafik Designer", value="grafikdesigner"),
+    ############################################################################################
+    discord.app_commands.Choice(name="Discord - Verwaltung", value="discord_verwaltung"),
+    discord.app_commands.Choice(name="Moderator", value="moderator"),
+    discord.app_commands.Choice(name="Supporter", value="supporter"),
+    discord.app_commands.Choice(name="Event - Teamleitung", value="event_leitung"),
+    discord.app_commands.Choice(name="Event - Team", value="event_team"),
 ])
 @discord.app_commands.choices(category=[
     discord.app_commands.Choice(name="Neues Teammitglied", value="new_member"),
@@ -2037,16 +2093,23 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
 ])
 async def team_update(interaction: discord.Interaction, user: discord.Member, role: discord.app_commands.Choice[str], category: discord.app_commands.Choice[str]):
     role_mapping = {
-        "projektleiter": 1289551806606868562,
-        "communitymanager": 1289357325118869532,
-        "discord_leitung": 1289533549615255593,
-        "forum_leitung": 1291067795542507622,
-        "head_developer": 1289357325118869527,
-        "developer": 1289542815289835570,
-        "admin_team": 1289652669794746501, 
-        "jvs_team": 1289357325106417711,  
-        "forum_team": 1289547099985281137,
-        "discord_team": 1289533183322492959
+        "Communityleitung": 909553645140451368,
+        "Infrastruktur_Verwaltung": 1296898655441260564,
+        "Stv_Projektleiter": 1251591964671873084,
+        "jvs_team": 909553645102727202,
+        "jvs_verwaltung": 909553645119471631,
+        "jvs_stv_teamleitung": 1209923916626264105, 
+        "jvs_s_admin": 1296897917356998686,  
+        "jvs_admin": 909553645119471630,
+        "jvs_dev": 909553645119471627,
+        "developer":1296913799705661450,
+        "grafikdesigner":933407856479318036,
+        "discord_verwaltung":1212475832078180452,
+        "moderator": 1214669893199462440,
+        "supporter": 909553645102727207,
+        "communityverwaltung": 1201950834532024340,
+        "event_team": 1224009276880846930,
+        "event_leitung": 1246141549503578352
     }
 
     role_id = role_mapping[role.value]
@@ -2212,8 +2275,6 @@ async def self(interaction: discord.Interaction, entry_id: int):
             conn.commit()
             await interaction.response.send_message(content=f"Server mit der ID {entry_id} erfolgreich entfernt.", ephemeral=True)
            
-            
-
 class TicketDropdown(discord.ui.Select):
         def __init__(self):
             options = [
@@ -2221,7 +2282,7 @@ class TicketDropdown(discord.ui.Select):
             discord.SelectOption(label="Report", description="Melde einen Nutzer auf dem Discord"),
             discord.SelectOption(label="Support", description="Für technische Hilfe"),
             discord.SelectOption(label="Bug", description="Falls du einen Bug gefunden hast"),
-            discord.SelectOption(label="Feedback", description="Falls du Feedback an Gaming Networks hast"),
+            discord.SelectOption(label="Feedback", description="Falls du Feedback an HRP hast"),
             discord.SelectOption(label="Sonstiges", description="Für alles andere"),
             ]
             super().__init__(placeholder="Wähle ein Ticket-Thema aus.", options=options, min_values=1, max_values=1, custom_id="support_menu")
@@ -2365,17 +2426,17 @@ async def self(interaction: discord.Interaction):
     else:
         verify_channel_id = None
     if not verify_channel_id:
-        await interaction.followup.send('The verification channel is not set. Please set it with `/setup`.', ephemeral = True)
+        await interaction.followup.send('Der Verifizierungskanal ist nicht vorhanden. Bitte setze ihn mit `/setup`.', ephemeral = True)
         return
     try:
         verify_channel = await bot.fetch_channel(verify_channel_id)
     except discord.NotFound:
         verify_channel = None
     except discord.Forbidden:
-        await interaction.followup.send(f'I don\'t have permission to see the verification channel (<#{verify_channel_id}>).', ephemeral = True)
+        await interaction.followup.send(f'Ich habe keine Berechtigung, den Verifizierungskanal zu sehen. (<#{verify_channel_id}>).', ephemeral = True)
         return
     if not verify_channel:
-        await interaction.followup.send('The verification channel doesn\'t exist. Please set it with `/setup`.', ephemeral = True)
+        await interaction.followup.send('Der Verifizierungskanal ist nicht vorhanden. Bitte setze ihn mit `/setup`.', ephemeral = True)
         return
 
 
@@ -2390,9 +2451,9 @@ async def self(interaction: discord.Interaction):
         None: "",
     }[action]
 
-    embed.description = f"Um mit `{interaction.guild.name}` fortzufahren, bitten wir dich, durch Lösen eines Captchas zu bestätigen das du kein Bot bist."
+    embed.description = f"Um mit {interaction.guild.name} fortzufahren, bitten wir dich, durch Lösen eines Captchas zu bestätigen das du kein Bot bist. Dies dient zur Sicherheit aller."
     if action_text:
-        embed.description += f"\n\nPlease note that {action_text}."
+        embed.description += f"\n\nBitte Notiere das {action_text}."
 
     c.execute('SELECT * FROM panels WHERE guild_id = ?', (interaction.guild_id,))
     data = c.fetchone()
@@ -2509,7 +2570,7 @@ async def self(interaction: discord.Interaction):
                               color = 0x2b63b0)
         await interaction.response.send_message(embed = embed, ephemeral=True)
     else:
-        await interaction.response.send_message('There are no settings for this server.\nUse `/setup` to set-up this server.', ephemeral=True)
+        await interaction.response.send_message('Es gibt keine Einstellungen für diesen Server.\nBenutze: `/setup`, um diesen Server einzurichten.', ephemeral=True)
 
 @tree.command(name = 'verify-all', description = 'Verify all non-bot users on the server.')
 @discord.app_commands.checks.cooldown(1, 3600, key=lambda i: (i.guild_id))
@@ -2553,7 +2614,7 @@ async def verify_user(interaction: discord.Interaction, member: discord.Member):
         if verify_role_id:
             verify_role = interaction.guild.get_role(verify_role_id)
             if verify_role is None:
-                await interaction.response.send_message('The verify role does not exist.', ephemeral=True)
+                await interaction.response.send_message('Die Rolle verify existiert nicht.', ephemeral=True)
                 return
             if not member.bot and verify_role not in member.roles:
                 try:
@@ -2561,31 +2622,27 @@ async def verify_user(interaction: discord.Interaction, member: discord.Member):
                     await interaction.response.send_message(f'{member.mention} got verified by {interaction.user.mention}.', ephemeral=True)
                     await Functions.send_logging_message(interaction=interaction, kind='user_verify', member=member)
                 except discord.Forbidden:
-                    await interaction.response.send_message('I do not have permission to add roles to this user.', ephemeral=True)
+                    await interaction.response.send_message('Ich habe dazu keine Rechte.', ephemeral=True)
             else:
-                await interaction.response.send_message(f'{member.mention} is already verified or is a bot.', ephemeral=True)
+                await interaction.response.send_message(f'{member.mention} ist bereits Verifiziert oder ist ein Bot.', ephemeral=True)
         else:
-            await interaction.response.send_message('There are no settings for this server.\nUse `/verify_setup` to set-up this server.', ephemeral=True)
+            await interaction.response.send_message('Es gibt keine Einstellungen für denn Server.\nNutze `/verify_setup` um denn Server aufzusetzen.', ephemeral=True)
     else:
-        await interaction.response.send_message('There are no settings for this server.\nUse `/verify_setup` to set-up this server.', ephemeral=True)
-
-
-
-
+        await interaction.response.send_message('Es gibt keine Einstellungen für denn Server.\nNutze `/verify_setup` um denn Server aufzusetzen.', ephemeral=True)
 
 if __name__ == '__main__':
     if sys.version_info < (3, 11):
-        program_logger.critical('Python 3.11 or higher is required.')
+        program_logger.critical('Es wird Python 3.11+ benötigt.')
         sys.exit(1)
     if not TOKEN:
-        program_logger.critical('Missing token. Please check your .env file.')
+        program_logger.critical('Token nicht vorhanden. Bitte Checke deine .env Datei.')
         sys.exit()
     else:
         SignalHandler()
         try:
             bot.run(TOKEN, log_handler=None)
         except discord.errors.LoginFailure:
-            program_logger.critical('Invalid token. Please check your .env file.')
+            program_logger.critical('Ungültiges Token. Bitte überprüfen Sie Ihre .env-Datei')
             sys.exit()
         except asyncio.CancelledError:
             if shutdown:
