@@ -462,28 +462,41 @@ class aclient(discord.AutoShardedClient):
             elif interaction.data and interaction.data.get('component_type') == 2: #2 ist Button
                 button_id = interaction.data.get('custom_id')
                 if button_id == ("close_ticket"):
-                   channel = interaction.channel
-                   c.execute('SELECT * FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
-                   data = c.fetchone()
-                   if data is None:
-                       return
-                   await interaction.response.defer(ephemeral=True)
-                   await TicketSystem.create_ticket(bot, interaction.channel.id, data[1])
-                   for user in interaction.channel.members:
-                       with open(f'{BUFFER_FOLDER}ticket-{interaction.channel.id}.html', 'r') as f:
-                            if user == bot.user:
-                                continue
-                            if user.bot:
-                                continue
-                            try:
-                                 await user.send(file=discord.File(f'{BUFFER_FOLDER}/ticket-{interaction.channel.id}.html'))
-                            except Exception as e:
-                                program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')   
-                   await asyncio.sleep(4)
-                   os.remove(f'{BUFFER_FOLDER}ticket-{interaction.channel.id}.html')
-                   c.execute('DELETE FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
-                   conn.commit()
-                   await channel.delete()
+
+
+
+                    view = interaction.message.components
+                    updated_view = discord.ui.View.from_message(interaction.message)
+
+                    for item in updated_view.children:
+                        if isinstance(item, discord.ui.Button) and item.custom_id == "close_ticket":
+                            item.disabled = True
+                    
+                    await interaction.message.edit(view=updated_view)
+
+
+                    channel = interaction.channel
+                    c.execute('SELECT * FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
+                    data = c.fetchone()
+                    if data is None:
+                        return
+                    await interaction.response.defer(ephemeral=True)
+                    await TicketSystem.create_ticket(bot, interaction.channel.id, data[1])
+                    for user in interaction.channel.members:
+                        with open(f'{BUFFER_FOLDER}ticket-{interaction.channel.id}.html', 'r') as f:
+                             if user == bot.user:
+                                 continue
+                             if user.bot:
+                                 continue
+                             try:
+                                  await user.send(file=discord.File(f'{BUFFER_FOLDER}/ticket-{interaction.channel.id}.html'))
+                             except Exception as e:
+                                 program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')   
+                    await asyncio.sleep(4)
+                    os.remove(f'{BUFFER_FOLDER}ticket-{interaction.channel.id}.html')
+                    c.execute('DELETE FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
+                    conn.commit()
+                    await channel.delete()
                    
                 elif button_id == ("add_ticket"):
                     channel = interaction.channel
