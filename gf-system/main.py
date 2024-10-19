@@ -936,7 +936,7 @@ class aclient(discord.AutoShardedClient):
         bot.loop.create_task(Tasks.check_team())
         bot.loop.create_task(Tasks.health_server())
         
-        await Functions.ChannelSystem()
+        #await Functions.ChannelSystem()
 
     async def on_ready(self):
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
@@ -998,17 +998,17 @@ class Functions():
             program_logger.error(f'Fehler beim laden der Teams: {e}')
             return {}
         
-    async def ChannelSystem():
-        global channel_sys_name
-        channel_sys_name = "🆕 Erstelle hier einen Channel"        
-        for guild in bot.guilds:
-            existing_channel = discord.utils.get(guild.voice_channels, name=channel_sys_name)
-            if existing_channel is None:
-                overwrites = {
-                    guild.default_role: discord.PermissionOverwrite(connect=False),
-                    guild.me: discord.PermissionOverwrite(connect=True)
-                }
-                await guild.create_voice_channel(channel_sys_name, overwrites=overwrites)
+    # async def ChannelSystem():
+    #     global channel_sys_name
+    #     channel_sys_name = "🆕 Erstelle hier einen Channel"        
+    #     for guild in bot.guilds:
+    #         existing_channel = discord.utils.get(guild.voice_channels, name=channel_sys_name)
+    #         if existing_channel is None:
+    #             overwrites = {
+    #                 guild.default_role: discord.PermissionOverwrite(connect=False),
+    #                 guild.me: discord.PermissionOverwrite(connect=True)
+    #             }
+    #             await guild.create_voice_channel(channel_sys_name, overwrites=overwrites)
     
     async def verify(interaction: discord.Interaction):
         class CaptchaInput(discord.ui.Modal, title = 'Verification'):
@@ -1850,12 +1850,12 @@ async def self(interaction: discord.Interaction, welcome_channel: discord.TextCh
             timestamp=datetime.datetime.now(datetime.UTC)
             )
         erfolgreich.set_footer(text = FOOTER_TEXT, icon_url = bot.user.avatar.url if bot.user.avatar else '')
-        channel_name = "🆕 Erstelle hier einen Channel"
-        overwrites = [
-            
-        ]
-        channel = await guild.create_voice_channel(channel_name)
-        await interaction.followup.send(embed = erfolgreich)
+        #channel_name = "🆕 Erstelle hier einen Channel"
+        #overwrites = [
+        #    
+        #]
+        #channel = await guild.create_voice_channel(channel_name)
+        #await interaction.followup.send(embed = erfolgreich)
     else:
         warning = discord.Embed(
             title = '⚠️ Warnung',

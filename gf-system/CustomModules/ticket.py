@@ -178,8 +178,8 @@ class TicketHTML:
                     <div class="header">
                         <div class="header-left">
 
-                            <img src="https://i.imgur.com/PBUYtvA.png" alt="IZ Logo">
-                            <span class="header-text">Gaming Networks </span>
+                            <img src="https://i.imgur.com/Tv7PpZm.png" alt="Logo">
+                            <span class="header-text">HRP | Community </span>
 
                         </div>
 
