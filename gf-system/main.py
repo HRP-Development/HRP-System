@@ -47,7 +47,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.2.2"
+BOT_VERSION = "1.3.0"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -290,6 +290,7 @@ class aclient(discord.AutoShardedClient):
         queries = [
             'ALTER TABLE TICKET_SYSTEM ADD COLUMN "ARCHIVE_CHANNEL_ID" INTEGER;',
             'ALTER TABLE TICKET_SYSTEM ADD COLUMN "SUPPORT_ROLE_ID" INTEGER;',
+            'ALTER TABLE servers ADD COLUMN "account_age_min" INTEGER;',
             ]
         for query in queries:
             try:
@@ -965,6 +966,8 @@ class aclient(discord.AutoShardedClient):
         bot.loop.create_task(Tasks.CheckFreeGames())
         bot.loop.create_task(Tasks.check_team())
         bot.loop.create_task(Tasks.health_server())
+        bot.loop.create_task(Tasks.process_latest_joined())
+        bot.loop.create_task(Tasks.check_and_process_temp_bans())
         
         #await Functions.ChannelSystem()
 
@@ -1107,117 +1110,6 @@ class Functions():
         bot.captcha_timeout.append(interaction.user.id)
         await interaction.response.send_message(f'Bitte verifiziere dich, um Zugang zu diesem Server zu erhalten.\n\n**Captcha:**', file = captcha_picture, view = SubmitView(), ephemeral = True)
 
-    async def process_latest_joined():
-        while not shutdown:
-            for guild in bot.guilds:
-                try:
-                    c.execute('SELECT * FROM servers WHERE guild_id = ?', (guild.id,))
-                    server = c.fetchone()
-                    if server is None:
-                        continue
-                    timeout = server[4]
-                    verified_role_id = server[2]
-                    action = server[5]
-                    ban_time = server[6]
-                    c.execute('SELECT * FROM processing_joined WHERE guild_id = ? AND (join_time + ?) < ?', (guild.id, timeout, int(time.time())))
-                    rows = c.fetchall()
-                    for row in rows:
-                        guild = bot.get_guild(row[0])
-                        if guild is None:
-                            c.execute('DELETE FROM processing_joined WHERE guild_id = ?', (row[0],))
-                            continue
-                        member = guild.get_member(row[1])
-                        if member is None:
-                            try:
-                                member = await guild.fetch_member(row[1])
-                                if member is None:
-                                    c.execute('DELETE FROM processing_joined WHERE guild_id = ? AND user_id = ?', (row[0], row[1]))
-                                    continue
-                            except discord.NotFound:
-                                c.execute('DELETE FROM processing_joined WHERE guild_id = ? AND user_id = ?', (row[0], row[1]))
-                                continue
-                        if action is None:
-                            continue
-                        verified_role = guild.get_role(verified_role_id)
-                        if verified_role is None:
-                            continue
-                        if verified_role not in member.roles:
-                            if action == 'kick':
-                                try:
-                                    await member.kick(reason='Did not successfully verify in time.')
-                                    await Functions.send_logging_message(member = member, kind = 'verify_kick')
-                                    program_logger.debug(f'Kicked {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
-                                except discord.Forbidden:
-                                    program_logger.debug(f'Could not kick {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
-                            elif action == 'ban':
-                                try:
-                                    if ban_time is not None:
-                                        await member.ban(reason=f'Did not successfully verify in time. Banned for {Functions.format_seconds(ban_time)}')
-                                        c.execute('INSERT INTO temp_bans VALUES (?, ?, ?)', (guild.id, member.id, int(time.time() + ban_time)))
-                                    else:
-                                        await member.ban(reason=f'Did not successfully verify in time.')
-                                    await Functions.send_logging_message(member = member, kind = 'verify_ban')
-                                    program_logger.debug(f'Banned {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
-                                except discord.Forbidden:
-                                    program_logger.debug(f'Could not ban {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
-                        else:
-                            c.execute('DELETE FROM processing_joined WHERE guild_id = ? AND user_id = ?', (row[0], row[1]))
-                except Exception as e:
-                    conn.commit()
-                    raise e
-            conn.commit()
-            try:
-                await asyncio.sleep(15)
-            except asyncio.CancelledError:
-                pass
-
-    async def check_and_process_temp_bans():
-        while not shutdown:
-            c.execute('SELECT * FROM temp_bans WHERE unban_time < ?', (time.time(),))
-            temp_bans = c.fetchall()
-            for temp_ban in temp_bans:
-                try:
-                    guild = bot.get_guild(temp_ban[0])
-                    if guild is None:
-                        c.execute('DELETE FROM temp_bans WHERE guild_id = ?', (temp_ban[0],))
-                        continue
-                    member = bot.get_user(temp_ban[1])
-                    if member is None:
-                        try:
-                            member = await bot.fetch_user(temp_ban[1])
-                        except discord.NotFound:
-                            c.execute('DELETE FROM temp_bans WHERE guild_id = ? AND user_id = ?', (temp_ban[0], temp_ban[1]))
-                            continue
-                    c.execute('SELECT log_channel FROM servers WHERE guild_id = ?', (guild.id,))
-                    log_channel_id = c.fetchone()[0]
-                    log_channel = guild.get_channel(int(log_channel_id))
-                    if log_channel is None:
-                        try:
-                            log_channel = await guild.fetch_channel(int(log_channel_id))
-                        except:
-                            log_channel = None
-                    try:
-                        await guild.unban(member, reason='Temporary ban expired.')
-                        embed = discord.Embed(title = 'Unban', description = f'User {member.mention} was unbanned.', color = discord.Color.green())
-                        embed.timestamp = datetime.datetime.now(datetime.UTC)
-                        program_logger.debug(f'Unbanned {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
-                        c.execute('DELETE FROM temp_bans WHERE guild_id = ? AND user_id = ?', (temp_ban[0], temp_ban[1]))
-                        if log_channel is not None:
-                            try:
-                                await log_channel.send(embed = embed)
-                            except discord.Forbidden:
-                                program_logger.debug(f'Could not send unban log message in {guild.name} ({guild.id}).')
-                    except discord.Forbidden:
-                        program_logger.debug(f'Could not unban {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
-                except Exception as e:
-                    conn.commit()
-                    raise e
-
-            conn.commit()
-            try:
-                await asyncio.sleep(15)
-            except asyncio.CancelledError:
-                pass
 
     async def send_logging_message(interaction: discord.Interaction = None, member: discord.Member = None, kind: str = '', mass_amount: int = 0):
         if interaction is not None:
@@ -1693,6 +1585,117 @@ class Tasks():
             program_logger.warning(f'Error while starting health server: {e}')
             program_logger.debug(f'Error while starting health server: {e}')
 
+    async def process_latest_joined():
+        while not shutdown:
+            for guild in bot.guilds:
+                try:
+                    c.execute('SELECT * FROM servers WHERE guild_id = ?', (guild.id,))
+                    server = c.fetchone()
+                    if server is None:
+                        continue
+                    timeout = server[4]
+                    verified_role_id = server[2]
+                    action = server[5]
+                    ban_time = server[6]
+                    c.execute('SELECT * FROM processing_joined WHERE guild_id = ? AND (join_time + ?) < ?', (guild.id, timeout, int(time.time())))
+                    rows = c.fetchall()
+                    for row in rows:
+                        guild = bot.get_guild(row[0])
+                        if guild is None:
+                            c.execute('DELETE FROM processing_joined WHERE guild_id = ?', (row[0],))
+                            continue
+                        member = guild.get_member(row[1])
+                        if member is None:
+                            try:
+                                member = await guild.fetch_member(row[1])
+                                if member is None:
+                                    c.execute('DELETE FROM processing_joined WHERE guild_id = ? AND user_id = ?', (row[0], row[1]))
+                                    continue
+                            except discord.NotFound:
+                                c.execute('DELETE FROM processing_joined WHERE guild_id = ? AND user_id = ?', (row[0], row[1]))
+                                continue
+                        if action is None:
+                            continue
+                        verified_role = guild.get_role(verified_role_id)
+                        if verified_role is None:
+                            continue
+                        if verified_role not in member.roles:
+                            if action == 'kick':
+                                try:
+                                    await member.kick(reason='Did not successfully verify in time.')
+                                    await Functions.send_logging_message(member = member, kind = 'verify_kick')
+                                    program_logger.debug(f'Kicked {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
+                                except discord.Forbidden:
+                                    program_logger.debug(f'Could not kick {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
+                            elif action == 'ban':
+                                try:
+                                    if ban_time is not None:
+                                        await member.ban(reason=f'Did not successfully verify in time. Banned for {Functions.format_seconds(ban_time)}')
+                                        c.execute('INSERT INTO temp_bans VALUES (?, ?, ?)', (guild.id, member.id, int(time.time() + ban_time)))
+                                    else:
+                                        await member.ban(reason=f'Did not successfully verify in time.')
+                                    await Functions.send_logging_message(member = member, kind = 'verify_ban')
+                                    program_logger.debug(f'Banned {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
+                                except discord.Forbidden:
+                                    program_logger.debug(f'Could not ban {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
+                        else:
+                            c.execute('DELETE FROM processing_joined WHERE guild_id = ? AND user_id = ?', (row[0], row[1]))
+                except Exception as e:
+                    conn.commit()
+                    raise e
+            conn.commit()
+            try:
+                await asyncio.sleep(15)
+            except asyncio.CancelledError:
+                pass
+
+    async def check_and_process_temp_bans():
+        while not shutdown:
+            c.execute('SELECT * FROM temp_bans WHERE unban_time < ?', (time.time(),))
+            temp_bans = c.fetchall()
+            for temp_ban in temp_bans:
+                try:
+                    guild = bot.get_guild(temp_ban[0])
+                    if guild is None:
+                        c.execute('DELETE FROM temp_bans WHERE guild_id = ?', (temp_ban[0],))
+                        continue
+                    member = bot.get_user(temp_ban[1])
+                    if member is None:
+                        try:
+                            member = await bot.fetch_user(temp_ban[1])
+                        except discord.NotFound:
+                            c.execute('DELETE FROM temp_bans WHERE guild_id = ? AND user_id = ?', (temp_ban[0], temp_ban[1]))
+                            continue
+                    c.execute('SELECT log_channel FROM servers WHERE guild_id = ?', (guild.id,))
+                    log_channel_id = c.fetchone()[0]
+                    log_channel = guild.get_channel(int(log_channel_id))
+                    if log_channel is None:
+                        try:
+                            log_channel = await guild.fetch_channel(int(log_channel_id))
+                        except:
+                            log_channel = None
+                    try:
+                        await guild.unban(member, reason='Temporary ban expired.')
+                        embed = discord.Embed(title = 'Unban', description = f'User {member.mention} was unbanned.', color = discord.Color.green())
+                        embed.timestamp = datetime.datetime.now(datetime.UTC)
+                        program_logger.debug(f'Unbanned {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
+                        c.execute('DELETE FROM temp_bans WHERE guild_id = ? AND user_id = ?', (temp_ban[0], temp_ban[1]))
+                        if log_channel is not None:
+                            try:
+                                await log_channel.send(embed = embed)
+                            except discord.Forbidden:
+                                program_logger.debug(f'Could not send unban log message in {guild.name} ({guild.id}).')
+                    except discord.Forbidden:
+                        program_logger.debug(f'Could not unban {member.name}#{member.discriminator} ({member.id}) from {guild.name} ({guild.id}).')
+                except Exception as e:
+                    conn.commit()
+                    raise e
+
+            conn.commit()
+            try:
+                await asyncio.sleep(15)
+            except asyncio.CancelledError:
+                pass
 
           
             
