@@ -47,7 +47,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.2.1"
+BOT_VERSION = "1.2.2"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -394,6 +394,14 @@ class aclient(discord.AutoShardedClient):
                         self.user: discord.PermissionOverwrite(read_messages=True)
                     }
 
+                    c.execute('SELECT SUPPORT_ROLE_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
+                    support_role_id = c.fetchone()[0]
+                    if support_role_id is not None:
+                        guild = bot.get_guild(MAIN_GUILD)
+                        support_role: discord.Role = guild.get_role(int(support_role_id))
+                        if support_role:
+                            overwrites[support_role] = discord.PermissionOverwrite(read_messages=True)
+
                     channel_name = f"⚠ {self.user.name}"
                     ticket_channel = await interaction.guild.create_text_channel(channel_name, category=category, overwrites=overwrites)
                     
@@ -422,7 +430,6 @@ class aclient(discord.AutoShardedClient):
                     admin_view.add_item(add_button)
                     admin_view.add_item(remove_button)
                     
-
                     await ticket_channel.send(embed=admin_embed, view=admin_view)
                     await ticket_channel.send(embed=ticket_embed)
                     try:
@@ -445,7 +452,7 @@ class aclient(discord.AutoShardedClient):
             elif interaction.data and interaction.data.get('component_type') == 2: #2 ist Button
                 button_id = interaction.data.get('custom_id')
                 if button_id == ("close_ticket"):
-                    isAdminOrSupport = await Functions.isAdminorSupport(interaction)
+                    isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
                     if not isAdminOrSupport:
                         await interaction.response.send_message(content="Du hast nicht das Recht diesen Button zu verwenden!", ephemeral=True)
                         return
@@ -493,7 +500,7 @@ class aclient(discord.AutoShardedClient):
                     await channel.delete()
                    
                 elif button_id == ("add_ticket"):
-                    isAdminOrSupport = await Functions.isAdminorSupport(interaction)
+                    isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
                     if not isAdminOrSupport:
                         await interaction.response.send_message(content="Du hast nicht das Recht diesen Button zu verwenden!", ephemeral=True)
                         return
@@ -502,7 +509,7 @@ class aclient(discord.AutoShardedClient):
                     modal = AddUserModal(channel)
                     await interaction.response.send_modal(modal)
                 elif button_id == ("remove_ticket"):
-                    isAdminOrSupport = await Functions.isAdminorSupport(interaction)
+                    isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
                     if not isAdminOrSupport:
                         await interaction.response.send_message(content="Du hast nicht das Recht diesen Button zu verwenden!", ephemeral=True)
                         return
@@ -1480,7 +1487,7 @@ class Functions():
 
         return False
 
-    async def isAdminorSupport(interaction: discord.Interaction) -> bool:
+    async def isAdminOrSupport(interaction: discord.Interaction) -> bool:
         isAdmin = interaction.user.guild_permissions.administrator
         if isAdmin:
             return True
