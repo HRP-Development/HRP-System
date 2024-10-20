@@ -82,7 +82,7 @@ jobs:
                       },
                       "timestamp": "${{ github.event.head_commit.timestamp }}"
                     }],
-                    "avatar_url": "https://cdn.discordapp.com/avatars/1289365690146492418/1fcf3895b5c8486c802a704ea3505f81.webp?size=4096"
+                    "avatar_url": "https://cdn.discordapp.com/avatars/1289365690146492418/98bfb892f06a3cb19e3be0dbd412de16.png?size=1024"
                   }' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
 
@@ -112,6 +112,6 @@ jobs:
                       },
                       "timestamp": "${{ github.event.head_commit.timestamp }}"
                     }],
-                    "avatar_url": "https://cdn.discordapp.com/avatars/1289365690146492418/1fcf3895b5c8486c802a704ea3505f81.webp?size=4096"
+                    "avatar_url": "https://cdn.discordapp.com/avatars/1289365690146492418/98bfb892f06a3cb19e3be0dbd412de16.png?size=1024"
                   }' \
                ${{ secrets.DISCORD_WEBHOOK_URL }}
