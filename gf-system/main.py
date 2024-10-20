@@ -2407,7 +2407,7 @@ async def self(interaction: discord.Interaction):
         await interaction.followup.send(f'Ich habe keine Berechtigung, den Verifizierungskanal zu sehen. (<#{verify_channel_id}>).', ephemeral = True)
         return
     if not verify_channel:
-        await interaction.followup.send('Der Verifizierungskanal ist nicht vorhanden. Bitte setze ihn mit `/setup`.', ephemeral = True)
+        await interaction.followup.send('Der Verifizierungskanal ist nicht vorhanden. Bitte setze ihn mit `/verify_setup`.', ephemeral = True)
         return
 
 
@@ -2417,7 +2417,7 @@ async def self(interaction: discord.Interaction):
                       )
     embed.set_footer(text = FOOTER_TEXT, icon_url = bot.user.avatar.url if bot.user.avatar else '')
     action_text = {
-        'ban': f"Du wurdest gebannt{f' für {Functions.format_seconds(ban_time)}' if ban_time else ''}, wen du dich nicht in {timeout} minuten verifiziertst.",
+        'ban': f"Du wirst gebannt{f' für {Functions.format_seconds(ban_time)}' if ban_time else ''}, wenn du dich nicht innerhalb von {timeout} Minuten verifizierst.",
         'kick': f"Du wirst rausgeschmissen, wenn du dich nicht innerhalb von {timeout} Minuten verifizierst",
         None: "",
     }[action]
@@ -2508,7 +2508,7 @@ async def self(interaction: discord.Interaction, verify_channel: discord.TextCha
     if ban_time is not None:
         ban_time = timeparse(ban_time)
         if ban_time is None:
-            await interaction.response.send_message('Invalide Ban Zeiten. Bitte nutze folgendes Format: `1d / 1h / 1m / 1s`.\nZum beispiel: `1d2h3m4s`', ephemeral=True)
+            await interaction.response.send_message('Invalide Ban Zeiten. Bitte nutze folgendes Format: `1d / 1h / 1m / 1s`.\nZum Beispiel: `1d2h3m4s`', ephemeral=True)
             return
     if account_age is not None:
         if not interaction.guild.me.guild_permissions.kick_members:
@@ -2516,11 +2516,11 @@ async def self(interaction: discord.Interaction, verify_channel: discord.TextCha
             return
         account_age = timeparse(account_age)
         if account_age is None:
-            await interaction.response.send_message('Ungültiges Alter des Kontos. Bitte verwenden Sie das folgende Format: `1d / 1h / 1m / 1s`.\nZum beispiel: `1d2h3m4s`', ephemeral=True)
+            await interaction.response.send_message('Ungültiges Alter des Kontos. Bitte verwenden Sie das folgende Format: `1d / 1h / 1m / 1s`.\nZum Beispiel: `1d2h3m4s`', ephemeral=True)
             return
-    c.execute('INSERT OR REPLACE INTO servers VALUES (?, ?, ?, ?, ?, ?, ?)', (interaction.guild.id, verify_channel.id, verify_role.id, log_channel.id, timeout, action, ban_time))
+    c.execute('INSERT OR REPLACE INTO servers VALUES (?, ?, ?, ?, ?, ?, ?, ?)', (interaction.guild.id, verify_channel.id, verify_role.id, log_channel.id, timeout, action, ban_time, account_age,))
     conn.commit()
-    await interaction.response.send_message(f'Setup completed.\nYou can now run `/send_panel`, to send the panel to <#{verify_channel.id}>.', ephemeral=True)
+    await interaction.response.send_message(f'Setup completed.\nYou can now run `/verify_send_pannel`, to send the panel to <#{verify_channel.id}>.', ephemeral=True)
 
 @tree.command(name = 'verify_einstellungen', description = 'Zeige die aktuellen Einstellungen.')
 @discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
