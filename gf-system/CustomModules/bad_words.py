@@ -12,7 +12,7 @@ class BadWords:
         "dummkopf", "scheißhaufen", "wichse", "kotzbrocken", "schwuchtel", "kanacke", "asozialer",
         "dreckspatz", "miststück", "volldepp", "affenarsch", "arschkriecher", "pissnelke", 
         "hinterlader", "drecksack", "arroganzbolzen", "rotze", "dreckslappen",
-        "schwachmat", "gehirnamputiert", "verkrüppelt", "vollidiot", "hackfresse", "saukerl",
+        "schwachmat", "gehirnamputiert", "verkrüppelt", "vollidiot", "hackfresse",
         "nigger"
         }
         self.words_to_check = {word.lower() for word in self.badwordlist}
@@ -30,7 +30,7 @@ class BadWords:
             for word in self.words_to_check:
                 similarity = SequenceMatcher(None, word, message_word).ratio()
                 if similarity >= 0.81:
-                    print(f"{message_word} -> {similarity}")
+                    print(f"{message_word}:{word} -> {similarity}")
                     return True
         
         return False
