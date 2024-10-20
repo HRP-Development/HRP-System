@@ -47,16 +47,15 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.1.0"
+BOT_VERSION = "1.2.0"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
 LOG_LEVEL = os.getenv('LOG_LEVEL')
-PUBLIC_IP = os.getenv('PUBLIC_IP')
-HTTP_PORT = os.getenv('HTTP_PORT')
 l_channel = os.getenv('LOG_CHANNEL')
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
+STEAM_REDIRECT_URL = os.getenv('STEAM_REDIRECT_URL')
 MAIN_GUILD = int(os.getenv('MAINGUILD'))
 LOG_CHANNEL = int(l_channel) if l_channel else None
     
@@ -552,6 +551,9 @@ class aclient(discord.AutoShardedClient):
         discord_logger.info(f'Ich wurde zu {guild} hinzugefügt. (ID: {guild.id})')
         
     async def on_guild_channel_update(self, before, after):
+        if before.position != after.position and before.name == after.name:
+            return
+
         embed = discord.Embed(
             title="🔧 Channel aktualisiert",
             description=f"Channel **{before.name}** wurde bearbeitet.",
@@ -1310,7 +1312,7 @@ class Functions():
         host, port, passwd = entry_id[2], entry_id[3], entry_id[4]
         embed = discord.Embed(
             title = await Functions.rcon_lua_run(LUA_COMMANDS['GetHostName'], host, port, passwd),
-            #url = f'http://{PUBLIC_IP}:{HTTP_PORT}?ip={host}&port={port}',
+            url = f'{STEAM_REDIRECT_URL}?ip={host}&port={port}',
             description = f"**IP:** {host}:{port}",
             color = discord.Color.brand_green(),
             timestamp = datetime.datetime.now(datetime.UTC),
@@ -2180,7 +2182,7 @@ async def self(interaction: discord.Interaction, host: str, port: int, passwd: s
             conn.commit()
             c.execute("SELECT ID FROM SERVER WHERE GUILD = ? AND HOST = ? AND PORT = ? AND PASS = ?", (interaction.guild_id, host, port, passwd))
             ID = c.fetchone()[0]
-            await interaction.followup.send(content=f"Server registered successfully.\n You can now use `/send_panel` with ID {ID}, to send it to a channel.", ephemeral=True)
+            await interaction.followup.send(content=f"Server registered successfully.\nYou can now use `/send_panel` with ID {ID}, to send it to a channel.", ephemeral=True)
 
 @tree.command(name = 'send_panel_server', description = 'send the panel into a channel.')
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.guild_id))

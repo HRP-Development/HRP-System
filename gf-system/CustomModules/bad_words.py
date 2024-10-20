@@ -11,7 +11,7 @@ class BadWords:
         "drecksau", "penner", "schwachkopf", "arschficker", "pimmel", "scheißdreck", "verfickt",
         "dummkopf", "scheißhaufen", "wichse", "kotzbrocken", "schwuchtel", "kanacke", "asozialer",
         "dreckspatz", "miststück", "volldepp", "affenarsch", "arschkriecher", "pissnelke", 
-        "hinterlader", "drecksack", "arroganzbolzen", "rotze", "scheißer", "dreckslappen",
+        "hinterlader", "drecksack", "arroganzbolzen", "rotze", "dreckslappen",
         "schwachmat", "gehirnamputiert", "verkrüppelt", "vollidiot", "hackfresse", "saukerl",
         "nigger"
         }
@@ -29,7 +29,8 @@ class BadWords:
         for message_word in message_words:
             for word in self.words_to_check:
                 similarity = SequenceMatcher(None, word, message_word).ratio()
-                if similarity >= 0.8:
+                if similarity >= 0.81:
+                    print(f"{message_word} -> {similarity}")
                     return True
         
         return False

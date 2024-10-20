@@ -14,6 +14,7 @@ services:
       LOG_CHANNEL:
       STEAM_API_KEY:
       MAINGUILD:
+      STEAM_REDIRECT_URL: http://localhost:8000/test.html
     image: ghcr.io/gaming-network/gn-system
     volumes:
       - data:/app/HRP-Sys
