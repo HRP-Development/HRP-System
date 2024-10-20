@@ -47,7 +47,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.2.0"
+BOT_VERSION = "1.2.1"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -757,11 +757,20 @@ class aclient(discord.AutoShardedClient):
         )
         embed.add_field(name="Inhalt", value=message.content, inline=False)
         embed.set_footer(text=FOOTER_TEXT, icon_url=self.user.avatar.url if self.user.avatar else '')
+    
         try:
+            async for entry in message.guild.audit_logs(limit=1, action=discord.AuditLogAction.message_delete):
+                if entry.target.id == message.author.id and entry.extra.channel.id == message.channel.id:
+                    embed.description = f"Nachricht von {message.author.mention} wurde durch {entry.user.mention} gelöscht."
+                    break
+    
             ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
             await ca.send(embed=embed)
         except discord.HTTPException as e:
             program_logger.error(f"Error while sending message delete log: {e}")
+        except discord.Forbidden:
+            program_logger.error(f"Missing permissions to read audit log in guild: {message.guild.id}")
+    
     
     async def on_member_update(self, before, after):
         embed = discord.Embed(
