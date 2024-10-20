@@ -471,19 +471,13 @@ class aclient(discord.AutoShardedClient):
                         return
                     await interaction.response.defer(ephemeral=True)
                     await TicketSystem.create_ticket(bot, interaction.channel.id, data_created_tickets[1])
-                    for user in interaction.channel.members:
-                        if user.guild_permissions.administrator:
-                            continue
-                        with open(f'{BUFFER_FOLDER}ticket-{interaction.channel.id}.html', 'r') as f:
-                            if user == bot.user:
-                                continue
-                            if user.bot:
-                                continue
-                            try:
-                                 await user.send(file=discord.File(f'{BUFFER_FOLDER}/ticket-{interaction.channel.id}.html'))
-                            except Exception as e:
-                                if not e.code == 50007:
-                                   program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')
+                    user: discord.User = await Functions.get_or_fetch('user', data_created_tickets[1])
+                    with open(f'{BUFFER_FOLDER}ticket-{interaction.channel.id}.html', 'r') as f:
+                        try:
+                             await user.send(file=discord.File(f'{BUFFER_FOLDER}/ticket-{interaction.channel.id}.html'))
+                        except Exception as e:
+                            if not e.code == 50007:
+                               program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')
 
                     c.execute('SELECT ARCHIVE_CHANNEL_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
                     archive_channel_id = c.fetchone()[0]
