@@ -2417,14 +2417,14 @@ async def self(interaction: discord.Interaction):
                       )
     embed.set_footer(text = FOOTER_TEXT, icon_url = bot.user.avatar.url if bot.user.avatar else '')
     action_text = {
-        'ban': f"Du wirst gebannt{f' für {Functions.format_seconds(ban_time)}' if ban_time else ''}, wenn du dich nicht innerhalb von {timeout} Minuten verifizierst.",
-        'kick': f"Du wirst rausgeschmissen, wenn du dich nicht innerhalb von {timeout} Minuten verifizierst",
+        'ban': f"Bitte beachte, dass du {f' für {Functions.format_seconds(ban_time)}' if ban_time else ''} gebannt wirst, wenn du dich nicht innerhalb von {timeout} Minuten verifizierst.",
+        'kick': f"Bitte beachte, dass du gekickt wirst, wenn du dich nicht innerhalb von {timeout} Minuten verifizierst.",
         None: "",
     }[action]
 
-    embed.description = f"Um mit {interaction.guild.name} fortzufahren, bitten wir dich, durch Lösen eines Captchas zu bestätigen das du kein Bot bist. Dies dient zur Sicherheit aller."
+    embed.description = f"Um mit {interaction.guild.name} fortzufahren, bitten wir dich, zu bestätigen, dass du kein Bot bist, indem du ein Captcha löst. Dies dient dazu, die Sicherheit aller zu gewährleisten."
     if action_text:
-        embed.description += f"\n\nBitte Notiere das {action_text}."
+        embed.description += f"\n\n{action_text}"
 
     c.execute('SELECT * FROM panels WHERE guild_id = ?', (interaction.guild_id,))
     data = c.fetchone()
