@@ -39,6 +39,10 @@
         {
             "role_name": "🔧 Discord Verwaltung",
             "role_id": 1297333314511962112
+        },
+        {
+            "role_name": "Support",
+            "role_id": 1297548437532971058
         }
     ]
 }
