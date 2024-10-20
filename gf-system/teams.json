@@ -1,41 +1,45 @@
 ﻿{
-  "teams": [
-    {
-      "role_name": "👑 Community Leiter",
-      "role_id": 1297333307695956059
-    },
-    {
-      "role_name": "🧑🏻‍💼 Community Leitung",
-      "role_id": 1297333309650767944
-    },
-    {
-      "role_name": "🖥️ Systemverwaltung",
-      "role_id": 1297333311407919107
-    },
-    {
-      "role_name": "🔧 Developer",
-      "role_id": 1297333323823321109
-    },
-    {
-      "role_name": "🎨 Designer",
-      "role_id": 933407856479318036
-    },
-    {
-      "role_name": "🗡️ TTT Team",
-      "role_id": 1297333324792070184
-    },
-    {
-      "role_name": "🛡️ DarkRP Team",
-      "role_id": 1297333326591295515
-    },
-    {
-      "role_name": "⚔️ Jedi vs Sith Team",
-      "role_id": 1297333325710495825
-    },
-    {
-      "role_name": "🔧 Discord Verwaltung",
-      "role_id": 1297333314511962112
-    }
-  ]
+    "teams": [
+        {
+            "role_name": "👑 Community Leiter",
+            "role_id": 1297333307695956059
+        },
+        {
+            "role_name": "🧑🏻‍💼 Community Leitung",
+            "role_id": 1297333309650767944
+        },
+        {
+            "role_name": "🖥️ Systemverwaltung",
+            "role_id": 1297333311407919107
+        },
+        {
+            "role_name": "🛠️ Head Developer",
+            "role_id": 1297333322846044320
+        },
+        {
+            "role_name": "🔧 Developer",
+            "role_id": 1297333323823321109
+        },
+        {
+            "role_name": "🎨 Designer",
+            "role_id": 933407856479318036
+        },
+        {
+            "role_name": "🗡️ TTT Team",
+            "role_id": 1297333324792070184
+        },
+        {
+            "role_name": "🛡️ DarkRP Team",
+            "role_id": 1297333326591295515
+        },
+        {
+            "role_name": "⚔️ Jedi vs Sith Team",
+            "role_id": 1297333325710495825
+        },
+        {
+            "role_name": "🔧 Discord Verwaltung",
+            "role_id": 1297333314511962112
+        }
+    ]
 }
   
