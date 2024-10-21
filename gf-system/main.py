@@ -2320,12 +2320,13 @@ async def self(interaction: discord.Interaction, channel: discord.TextChannel, a
     class TicketDropdown(discord.ui.Select):
             def __init__(self):
                 options = [
-                discord.SelectOption(label="Discord", description="Für allgemeine Hilfe im Discord"),
-                discord.SelectOption(label="Report", description="Melde einen Nutzer auf dem Discord"),
-                discord.SelectOption(label="Support", description="Für technische Hilfe"),
-                discord.SelectOption(label="Bug", description="Falls du einen Bug gefunden hast"),
-                discord.SelectOption(label="Feedback", description="Falls du Feedback an HRP hast"),
-                discord.SelectOption(label="Sonstiges", description="Für alles andere"),
+                discord.SelectOption(label="Discord", description="Für allgemeine Hilfe im Discord."),
+                discord.SelectOption(label="Report", description="Melde einen Nutzer auf dem Discord."),
+                discord.SelectOption(label="Support", description="Für technische Hilfe."),
+                discord.SelectOption(label="Bug", description="Falls du einen Bug gefunden hast."),
+                discord.SelectOption(label="Feedback", description="Falls du Feedback an HRP hast."),
+                discord.SelectOption(label="Entbannung", description="Wenn du einen Entbannungsantrag stellen möchtest."),
+                discord.SelectOption(label="Sonstiges", description="Für alles andere."),
                 ]
                 super().__init__(placeholder="Wähle ein Ticket-Thema aus.", options=options, min_values=1, max_values=1, custom_id="support_menu")
 
