@@ -4,7 +4,6 @@ class TicketHTML:
     def __init__(self, bot, buffer_folder):
         self.bot = bot
         self.buffer_folder = buffer_folder
-        print("TicketHTML initialized")
 
     async def create_ticket(self, channel_id, creator):
         messages = []

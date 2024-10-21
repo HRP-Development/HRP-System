@@ -17,7 +17,6 @@ import sys
 import sqlite3
 import string
 
-from CustomModules.app_translation import Translator as CustomTranslator
 from CustomModules import log_handler
 from CustomModules import steam_api
 from CustomModules.steam_api import Errors as steam_errors
@@ -47,7 +46,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.4.0"
+BOT_VERSION = "1.5.0"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -951,7 +950,6 @@ class aclient(discord.AutoShardedClient):
             sys.exit(f"Fehler bei dem Finden des Owners: {e}")
         discord_logger.info(f'Angemeldet als {bot.user} (ID: {bot.user.id})')
         discord_logger.info('Syncronisierung...')
-        await tree.set_translator(CustomTranslator())
         await tree.sync()
         discord_logger.info('Syncronisierung.')
         self.synced = True
