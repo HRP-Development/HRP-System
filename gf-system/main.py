@@ -23,7 +23,7 @@ from CustomModules import steam_api
 from CustomModules.steam_api import Errors as steam_errors
 from CustomModules.bad_words import BadWords
 from CustomModules import context_commands
-from CustomModules.ticket import TicketHTML as TicketSystem
+from CustomModules.ticket import TicketHTML
 from CustomModules import epic_games_api
 
 from aiohttp import web
@@ -47,7 +47,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.3.0"
+BOT_VERSION = "1.4.0"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -363,14 +363,15 @@ class aclient(discord.AutoShardedClient):
                         label='Titel',
                         placeholder='Titel des Tickets',
                         min_length=6,
-                        max_length=25
+                        max_length=30
                     )
                     self.add_item(self.title_input)
 
                     self.description_input = discord.ui.TextInput(
                         label='Beschreibung',
                         placeholder='Beschreibung des Tickets',
-                        style=discord.TextStyle.paragraph
+                        style=discord.TextStyle.paragraph,
+                        min_length=40
                     )
                     self.add_item(self.description_input)
 
@@ -470,7 +471,7 @@ class aclient(discord.AutoShardedClient):
                     if data_created_tickets is None:
                         return
                     await interaction.response.defer(ephemeral=True)
-                    await TicketSystem.create_ticket(bot, interaction.channel.id, data_created_tickets[1])
+                    await TicketSystem.create_ticket(interaction.channel.id, data_created_tickets[1])
                     user: discord.User = await Functions.get_or_fetch('user', data_created_tickets[1])
                     with open(f'{BUFFER_FOLDER}ticket-{interaction.channel.id}.html', 'r') as f:
                         try:
@@ -978,6 +979,8 @@ tree = discord.app_commands.CommandTree(bot)
 tree.on_error = bot.on_app_command_error
 
 context_commands.setup(tree)
+
+TicketSystem = TicketHTML(bot=bot, buffer_folder=BUFFER_FOLDER)
 
 class SignalHandler:
     def __init__(self):
@@ -1919,7 +1922,7 @@ async def self(interaction: discord.Interaction, welcome_channel: discord.TextCh
             await interaction.channel.send('❌ Zeit abgelaufen.')
             
 @tree.command(name='clear', description='Clears the chat.')
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 @discord.app_commands.checks.has_permissions(manage_messages=True)
 @discord.app_commands.describe(amount='Amount of messages to delete.')
 async def self(interaction: discord.Interaction, amount: int):
@@ -1998,7 +2001,7 @@ async def self(interaction: discord.Interaction):
         await interaction.followup.send(embed=unlock_eb)
     
 @tree.command(name='kick', description='Kicks a user.')
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 @discord.app_commands.checks.has_permissions(kick_members=True)
 @discord.app_commands.describe(user='User to kick.',
                                reason='Reason for the kick.'
@@ -2033,7 +2036,7 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
     await interaction.followup.send(embed=kick_eb)
     
 @tree.command(name='ban', description='Bans a user.')
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 @discord.app_commands.checks.has_permissions(ban_members=True)
 @discord.app_commands.describe(user='User to ban.',
                                reason='Reason for the ban.'
@@ -2068,7 +2071,7 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
     await interaction.followup.send(embed=ban_eb)
     
 @tree.command(name='unban', description='Unbans a user.')
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 @discord.app_commands.checks.has_permissions(ban_members=True)
 @discord.app_commands.describe(user='User to unban.',
                                reason='Reason for the unban.'
@@ -2268,7 +2271,7 @@ async def self(interaction: discord.Interaction, entry_id: int, channel: discord
             await _pannel_send()
 
 @tree.command(name = 'list_servers', description = 'list of all registered servers.')
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 @discord.app_commands.checks.has_permissions(administrator = True)
 async def self(interaction: discord.Interaction):
     c.execute("SELECT * FROM SERVER WHERE GUILD = ?", (interaction.guild_id,))
@@ -2517,7 +2520,7 @@ async def self(interaction: discord.Interaction, verify_channel: discord.TextCha
     await interaction.response.send_message(f'Setup completed.\nYou can now run `/verify_send_pannel`, to send the panel to <#{verify_channel.id}>.', ephemeral=True)
 
 @tree.command(name = 'verify_einstellungen', description = 'Zeige die aktuellen Einstellungen.')
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id))
 @discord.app_commands.checks.has_permissions(manage_guild = True)
 async def self(interaction: discord.Interaction):
     c.execute('SELECT * FROM servers WHERE guild_id = ?', (interaction.guild.id,))
@@ -2569,7 +2572,7 @@ async def self(interaction: discord.Interaction):
         await interaction.response.send_message('There are no settings for this server.\nUse `/setup` to set-up this server.', ephemeral=True)
         
 @tree.context_menu(name="Verify User")
-@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id, i.data['target_id']))
+@discord.app_commands.checks.cooldown(1, 60, key=lambda i: (i.user.id, i.data['target_id']))
 @discord.app_commands.checks.has_permissions(manage_roles=True)
 async def verify_user(interaction: discord.Interaction, member: discord.Member):
     c.execute('SELECT * FROM servers WHERE guild_id = ?', (interaction.guild.id,))
@@ -2594,6 +2597,18 @@ async def verify_user(interaction: discord.Interaction, member: discord.Member):
             await interaction.response.send_message('Es gibt keine Einstellungen für denn Server.\nNutze `/verify_setup` um denn Server aufzusetzen.', ephemeral=True)
     else:
         await interaction.response.send_message('Es gibt keine Einstellungen für denn Server.\nNutze `/verify_setup` um denn Server aufzusetzen.', ephemeral=True)
+
+@tree.command(name='get_userid', description='Print the ID of a given user.')
+@discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
+@discord.app_commands.describe(user='User to get the ID from.')
+async def self(interaction: discord.Interaction, user: discord.Member):
+    await interaction.response.send_message(content=f'The ID of {user.mention} is: `{user.id}`.', ephemeral=True)
+
+
+
+
+
+
 
 if __name__ == '__main__':
     if sys.version_info < (3, 11):
