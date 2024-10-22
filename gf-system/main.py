@@ -46,7 +46,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.5.0"
+BOT_VERSION = "1.5.1"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -433,6 +433,7 @@ class aclient(discord.AutoShardedClient):
                     
                     await ticket_channel.send(embed=admin_embed, view=admin_view)
                     await ticket_channel.send(embed=ticket_embed)
+                    await ticket_channel.send(content=f"Hey listen <@&{support_role_id}>, es gibt ein neues Ticket.") # Wenn geändert, ändere Text in ticket.py, um vom Transcript auszunehmen.
                     try:
                         c.execute('INSERT INTO CREATED_TICKETS (USER_ID, CHANNEL_ID, GUILD_ID, CATEGORY) VALUES (?, ?, ?, ?)', (self.user.id, ticket_channel.id, interaction.guild.id, self.category))
                         conn.commit()
@@ -497,7 +498,7 @@ class aclient(discord.AutoShardedClient):
                 elif button_id == ("add_ticket"):
                     isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
                     if not isAdminOrSupport:
-                        await interaction.response.send_message(content="Du hast nicht das Recht diesen Button zu verwenden!", ephemeral=True)
+                        await interaction.response.send_message(content="Du hast nicht das Recht, diesen Button zu verwenden!", ephemeral=True)
                         return
 
                     channel = interaction.channel
@@ -506,7 +507,7 @@ class aclient(discord.AutoShardedClient):
                 elif button_id == ("remove_ticket"):
                     isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
                     if not isAdminOrSupport:
-                        await interaction.response.send_message(content="Du hast nicht das Recht diesen Button zu verwenden!", ephemeral=True)
+                        await interaction.response.send_message(content="Du hast nicht das Recht, diesen Button zu verwenden!", ephemeral=True)
                         return
 
                     channel = interaction.channel
@@ -949,9 +950,9 @@ class aclient(discord.AutoShardedClient):
             program_logger.critical(f"Fehler bei dem Finden des Owners: {e}")
             sys.exit(f"Fehler bei dem Finden des Owners: {e}")
         discord_logger.info(f'Angemeldet als {bot.user} (ID: {bot.user.id})')
-        discord_logger.info('Syncronisierung...')
+        discord_logger.info('Synchronisierung...')
         await tree.sync()
-        discord_logger.info('Syncronisierung.')
+        discord_logger.info('Synchronisierung.')
         self.synced = True
         #Background shit
         bot.loop.create_task(Tasks.update_embeds_task())

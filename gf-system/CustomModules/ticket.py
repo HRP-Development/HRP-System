@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 
 class TicketHTML:
     def __init__(self, bot, buffer_folder):
@@ -21,6 +22,9 @@ class TicketHTML:
             if avatar_url is None:
                 avatar_url = "https://cdn.discordapp.com/embed/avatars/0.png"
             
+            if re.match(r"^Hey listen <@&\d+>, es gibt ein neues Ticket\.$", message.content):
+                continue
+
             # Process normal messages
             if message.content:
                 messages.append(f"""
