@@ -7,7 +7,7 @@ class BadWords:
     def __init__(self):
         self.badwordlist = {
         "hurensohn", "fotze", "bastard", "opfer", "spast", "wichser", "arschloch", "ficker",
-        "schlampe", "hure", "mongo", "missgeburt", "scheißkerl", "verpiss", "idiot", "trottel",
+        "schlampe", "hure", "mongo", "missgeburt", "verpiss", "idiot", "trottel",
         "drecksau", "penner", "schwachkopf", "arschficker", "pimmel", "scheißdreck", "verfickt",
         "dummkopf", "scheißhaufen", "wichse", "kotzbrocken", "schwuchtel", "kanacke", "asozialer",
         "dreckspatz", "miststück", "volldepp", "affenarsch", "arschkriecher", "pissnelke", 
