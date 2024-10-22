@@ -20,6 +20,7 @@ class BadWords:
 
     @lru_cache(maxsize=50)
     def isBad(self, message: str) -> bool:
+        return False
         cleaned_message = ''.join(char.lower() if char.isalnum() or char.isspace() else ' ' for char in message)
         message_words = set(cleaned_message.split())
         
