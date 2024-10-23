@@ -21,6 +21,7 @@ import sys
 import sqlite3
 import string
 
+from CustomModules import database_setup
 from CustomModules import log_handler
 from CustomModules import steam_api
 from CustomModules.steam_api import Errors as steam_errors
@@ -133,412 +134,248 @@ validator = JSONValidator(ACTIVITY_FILE)
 validator.validate_and_fix_json()
 
 
-class aclient(discord.AutoShardedClient):
-    def __init__(self):
 
-        intents = discord.Intents.default()
-        intents.members = True
-        intents.guilds = True
-        intents.dm_messages = True
-        intents.message_content = True
-        intents.guild_messages = True
-
-        super().__init__(owner_id = OWNERID,
-                              intents = intents,
-                              status = discord.Status.invisible,
-                              auto_reconnect = True
-                        )
-        self.synced = False
-        self.initialized = False
-        self.captcha_timeout = []
-        self.message_cache = {}
-
-
-    class Presence():
-        @staticmethod
-        def get_activity() -> discord.Activity:
-            with open(ACTIVITY_FILE) as f:
-                data = json.load(f)
-                activity_type = data['activity_type']
-                activity_title = data['activity_title']
-                activity_url = data['activity_url']
-            if activity_type == 'Playing':
-                return discord.Game(name=activity_title)
-            elif activity_type == 'Streaming':
-                return discord.Streaming(name=activity_title, url=activity_url)
-            elif activity_type == 'Listening':
-                return discord.Activity(type=discord.ActivityType.listening, name=activity_title)
-            elif activity_type == 'Watching':
-                return discord.Activity(type=discord.ActivityType.watching, name=activity_title)
-            elif activity_type == 'Competing':
-                return discord.Activity(type=discord.ActivityType.competing, name=activity_title)
-
-        @staticmethod
-        def get_status() -> discord.Status:
-            with open(ACTIVITY_FILE) as f:
-                data = json.load(f)
-                status = data['status']
-            if status == 'online':
-                return discord.Status.online
-            elif status == 'idle':
-                return discord.Status.idle
-            elif status == 'dnd':
-                return discord.Status.dnd
-            elif status == 'invisible':
-                return discord.Status.invisible
-            
-
-    async def setup_database(self):
-        c.executescript('''
-        CREATE TABLE IF NOT EXISTS "SERVER" (
-	        "ID"	INTEGER,
-	        "GUILD"	INTEGER NOT NULL,
-	        "HOST"	TEXT NOT NULL,
-	        "PORT"	INTEGER NOT NULL,
-	        "PASS"	TEXT NOT NULL,
-	        PRIMARY KEY("ID" AUTOINCREMENT)
-        );
-        CREATE TABLE IF NOT EXISTS "EMBEDS" (
-	        "ID"	        INTEGER,
-	        "GUILD"	        INTEGER NOT NULL,
-	        "CHANNEL"	    INTEGER NOT NULL,
-	        "MESSAGE_ID"	INTEGER NOT NULL,
-            "SERVER_ID"	    INTEGER UNIQUE,
-	        PRIMARY KEY("ID" AUTOINCREMENT)
-        );
-        CREATE TABLE IF NOT EXISTS "GUILD_SETTINGS" (
-            "GUILD_ID"	        INTEGER NOT NULL,
-            "welcome_channel"	INTEGER,
-            "leave_channel"	    INTEGER,
-            "logging_channel"	INTEGER,
-            "announce_channel"  INTEGER,
-            "team_update_channel"	INTEGER,
-            "free_games_channel" INTEGER,   
-            "team_list_channel"	INTEGER,
-            PRIMARY KEY("GUILD_ID")
-        );
-        CREATE TABLE IF NOT EXISTS "TICKET_SYSTEM" (
-            "ID"	        INTEGER,
-            "GUILD_ID"	        INTEGER NOT NULL,
-            "CHANNEL"	    INTEGER NOT NULL,
-            "EMBED_ID"      INTEGER,
-            PRIMARY KEY("ID" AUTOINCREMENT)
-        );
-        CREATE TABLE IF NOT EXISTS "warns" (
-            "ID"	        INTEGER,
-            "GUILD_ID"	    INTEGER NOT NULL,
-            "USER_ID"	    INTEGER NOT NULL,
-            "WARNED_BY"	    INTEGER NOT NULL,
-            "REASON"	    TEXT NOT NULL,
-            "TIME"	        INTEGER NOT NULL,
-            PRIMARY KEY("ID" AUTOINCREMENT)
-        );
-        CREATE TABLE IF NOT EXISTS "CREATED_TICKETS" (
-            "ID"            INTEGER,
-            "USER_ID"       INTEGER NOT NULL,
-            "CHANNEL_ID"    INTEGER NOT NULL,
-            "GUILD_ID"      INTEGER NOT NULL,
-            "CATEGORY"      TEXT NOT NULL,
-            PRIMARY KEY("ID" AUTOINCREMENT)            
-        );
-        CREATE TABLE IF NOT EXISTS "SERVER" (
-	        "ID"	INTEGER,
-	        "GUILD"	INTEGER NOT NULL,
-	        "HOST"	TEXT NOT NULL,
-	        "PORT"	INTEGER NOT NULL,
-	        "PASS"	TEXT NOT NULL,
-	        PRIMARY KEY("ID" AUTOINCREMENT)
-        );
-        CREATE TABLE IF NOT EXISTS "EMBEDS" (
-	        "ID"	        INTEGER,
-	        "GUILD"	        INTEGER NOT NULL,
-	        "CHANNEL"	    INTEGER NOT NULL,
-	        "MESSAGE_ID"	INTEGER NOT NULL,
-            "SERVER_ID"	    INTEGER UNIQUE,
-	        PRIMARY KEY("ID" AUTOINCREMENT)
-        );
-        CREATE TABLE IF NOT EXISTS "free_games" (
-            "ID"	        INTEGER,
-            "TITEL_ID"	    TEXT NOT NULL, 
-            "DATUM"	        INTEGER NOT NULL,
-            PRIMARY KEY("ID" AUTOINCREMENT)                      
-        );
-        CREATE TABLE IF NOT EXISTS panels (
-                guild_id INTEGER PRIMARY KEY,
-                panel_id INTEGER
-        );
-
-        CREATE TABLE IF NOT EXISTS temp_bans (
-            guild_id INTEGER,
-            user_id INTEGER,
-            unban_time INTEGER
-        );
-
-        CREATE TABLE IF NOT EXISTS processing_joined (
-            guild_id INTEGER,
-            user_id INTEGER,
-            join_time INTEGER
-        );
-        CREATE TABLE IF NOT EXISTS servers (
-            guild_id INTEGER PRIMARY KEY,
-            verify_channel INTEGER,
-            verify_role INTEGER,
-            log_channel INTEGER,
-            timeout INTEGER,
-            action TEXT,
-            ban_time INTEGER
-        )
-        ''')
-
-        queries = [
-            'ALTER TABLE TICKET_SYSTEM ADD COLUMN "ARCHIVE_CHANNEL_ID" INTEGER;',
-            'ALTER TABLE TICKET_SYSTEM ADD COLUMN "SUPPORT_ROLE_ID" INTEGER;',
-            'ALTER TABLE servers ADD COLUMN "account_age_min" INTEGER;',
-            ]
-        for query in queries:
-            try:
-                c.execute(query)
-            except Exception:
-                pass
+class DiscordEvents():
+    class _AddUserModal(discord.ui.Modal):
+        def __init__(self, channel):
+            super().__init__(title="Benutzer zum Ticket hinzufügen")
+            self.channel = channel
     
-    async def on_interaction(self, interaction: discord.Interaction):
-        if not interaction.response.is_done():
-            class AddUserModal(discord.ui.Modal):
-                def __init__(self, channel):
-                    super().__init__(title="Benutzer zum Ticket hinzufügen")
-                    self.channel = channel
+            self.user_id_input = discord.ui.TextInput(
+                label='Benutzer-ID',
+                placeholder='Benutzer-ID',
+                min_length=17,
+                max_length=21
+            )
+            self.add_item(self.user_id_input)
+        
+        async def on_submit(self, interaction: discord.Interaction):
+            user = self.user_id_input.value
+            try:
+                user = await Functions.get_or_fetch('user', int(user))
+                await self.channel.set_permissions(user, read_messages=True, send_messages=True, read_message_history=True)
+                await interaction.response.send_message(f'{user.mention} wurde zum Ticket hinzugefügt.', ephemeral=True)
+            except ValueError:
+                await interaction.response.send_message(content="Die ID darf ausschließlich aus Zahlen bestehen!", ephemeral=True)
+                return
+            except Exception as e:
+                await interaction.response.send_message(f'Fehler beim Hinzufügen eines Nutzers zu einem Ticket: {e}', ephemeral=True)
+                
+    class _RemoveUserModal(discord.ui.Modal):
+        def __init__(self, channel):
+            super().__init__(title="Benutzer zum entfernen des Tickets")
+            self.channel = channel
+    
+            self.user_id_input = discord.ui.TextInput(
+                label='Benutzer-ID',
+                placeholder='Benutzer-ID',
+                min_length=17,
+                max_length=21
+            )
+            self.add_item(self.user_id_input)
+        
+        async def on_submit(self, interaction: discord.Interaction):
+            user = self.user_id_input.value
+            try:
+                user = await Functions.get_or_fetch('user', int(user))
+                if user == interaction.user:
+                    await interaction.response.send_message(f'Du kannst dich nicht selbst entfernen.', ephemeral=True)
+                    return
+                await self.channel.set_permissions(user, read_messages=False, send_messages=False, read_message_history=False)
+                await interaction.response.send_message(f'{user.mention} wurde vom Ticket entfernt.', ephemeral=True)
+            except ValueError:
+                await interaction.response.send_message(content="Die ID darf ausschließlich aus Zahlen bestehen!", ephemeral=True)
+                return
+            except Exception as e:
+                await interaction.response.send_message(f'Fehler beim Entfernen eines Nutzers von einem Ticket: {e}', ephemeral=True)
+    
+    class _TicketModal(discord.ui.Modal):
+        def __init__(self, category, user):
+            super().__init__(title='Erstelle ein Ticket')
+            self.category = category
+            self.user = user
+    
+            self.title_input = discord.ui.TextInput(
+                label='Titel',
+                placeholder='Titel des Tickets',
+                min_length=6,
+                max_length=30
+            )
+            self.add_item(self.title_input)
+    
+            self.description_input = discord.ui.TextInput(
+                label='Beschreibung',
+                placeholder='Beschreibung des Tickets',
+                style=discord.TextStyle.paragraph,
+                min_length=40
+            )
+            self.add_item(self.description_input)
+    
+        async def on_submit(self, interaction: discord.Interaction):
+            #Check for existing Ticket
+            c.execute('SELECT * FROM CREATED_TICKETS WHERE USER_ID = ? AND GUILD_ID = ? AND CATEGORY = ?', (interaction.user.id, interaction.guild.id, self.category))
+            data = c.fetchone()
+            if data is not None:
+                await interaction.response.send_message(content=f"Du hast bereits ein offenes Ticket für die Kategorie {self.category}.: <#{data[2]}>\nDu kannst nur ein Ticket pro Kategorie zur selben Zeit offen haben.", ephemeral=True)
+                return
+    
+            title = self.title_input.value
+            description = self.description_input.value
+            category = discord.utils.get(interaction.guild.categories, name=f'Ticket-{self.category}')
+    
+            if category is None:
+                category = await interaction.guild.create_category(f'Ticket-{self.category}')
+    
+            overwrites = {
+                interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                interaction.guild.me: discord.PermissionOverwrite(read_messages=True),
+                self.user: discord.PermissionOverwrite(read_messages=True)
+            }
+    
+            c.execute('SELECT SUPPORT_ROLE_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
+            support_role_id = c.fetchone()[0]
+            if support_role_id is not None:
+                guild = bot.get_guild(MAIN_GUILD)
+                support_role: discord.Role = guild.get_role(int(support_role_id))
+                if support_role:
+                    overwrites[support_role] = discord.PermissionOverwrite(read_messages=True)
+    
+            channel_name = f"⚠ {self.user.name}"
+            ticket_channel = await interaction.guild.create_text_channel(channel_name, category=category, overwrites=overwrites)
+            await ticket_channel.edit(topic='NICHT LÖSCHEN!')
             
-                    self.user_id_input = discord.ui.TextInput(
-                        label='Benutzer-ID',
-                        placeholder='Benutzer-ID',
-                        min_length=17,
-                        max_length=21
-                    )
-                    self.add_item(self.user_id_input)
-                
-                async def on_submit(self, interaction: discord.Interaction):
-                    user = self.user_id_input.value
-                    try:
-                        user = await Functions.get_or_fetch('user', int(user))
-                        await self.channel.set_permissions(user, read_messages=True, send_messages=True, read_message_history=True)
-                        await interaction.response.send_message(f'{user.mention} wurde zum Ticket hinzugefügt.', ephemeral=True)
-                    except ValueError:
-                        await interaction.response.send_message(content="Die ID darf ausschlieißlich aus Zahlen bestehen!", ephemeral=True)
-                        return
-                    except Exception as e:
-                        await interaction.response.send_message(f'Fehler beim Hinzufügen eines Nutzers zu einem Ticket: {e}', ephemeral=True)
-                        
-            class RemoveUserModal(discord.ui.Modal):
-                def __init__(self, channel):
-                    super().__init__(title="Benutzer zum entfernen des Tickets")
-                    self.channel = channel
-
-                    self.user_id_input = discord.ui.TextInput(
-                        label='Benutzer-ID',
-                        placeholder='Benutzer-ID',
-                        min_length=17,
-                        max_length=21
-                    )
-                    self.add_item(self.user_id_input)
-                
-                async def on_submit(self, interaction: discord.Interaction):
-                    user = self.user_id_input.value
-                    try:
-                        user = await Functions.get_or_fetch('user', int(user))
-                        if user == interaction.user:
-                            await interaction.response.send_message(f'Du kannst dich nicht selbst entfernen.', ephemeral=True)
-                            return
-                        await self.channel.set_permissions(user, read_messages=False, send_messages=False, read_message_history=False)
-                        await interaction.response.send_message(f'{user.mention} wurde vom Ticket entfernt.', ephemeral=True)
-                    except ValueError:
-                        await interaction.response.send_message(content="Die ID darf ausschlieißlich aus Zahlen bestehen!", ephemeral=True)
-                        return
-                    except Exception as e:
-                        await interaction.response.send_message(f'Fehler beim Entfernen eises Nutzers von einem Ticket: {e}', ephemeral=True)
-
-            class TicketModal(discord.ui.Modal):
-                def __init__(self, category, user):
-                    super().__init__(title='Erstelle ein Ticket')
-                    self.category = category
-                    self.user = user
-
-                    self.title_input = discord.ui.TextInput(
-                        label='Titel',
-                        placeholder='Titel des Tickets',
-                        min_length=6,
-                        max_length=30
-                    )
-                    self.add_item(self.title_input)
-
-                    self.description_input = discord.ui.TextInput(
-                        label='Beschreibung',
-                        placeholder='Beschreibung des Tickets',
-                        style=discord.TextStyle.paragraph,
-                        min_length=40
-                    )
-                    self.add_item(self.description_input)
-
-                async def on_submit(self, interaction: discord.Interaction):
-                    #Check for existing Ticket
-                    c.execute('SELECT * FROM CREATED_TICKETS WHERE USER_ID = ? AND GUILD_ID = ? AND CATEGORY = ?', (interaction.user.id, interaction.guild.id, self.category))
-                    data = c.fetchone()
-                    if data is not None:
-                        await interaction.response.send_message(content=f"Du hast bereits ein offenes Ticket für die Kategorie {self.category}.: <#{data[2]}>\nDu kannst nur ein Ticket pro Kategorie zur selben Zeit offen haben.", ephemeral=True)
-                        return
-
-                    title = self.title_input.value
-                    description = self.description_input.value
-                    category = discord.utils.get(interaction.guild.categories, name=f'Ticket-{self.category}')
-
-                    if category is None:
-                        category = await interaction.guild.create_category(f'Ticket-{self.category}')
-
-                    overwrites = {
-                        interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
-                        interaction.guild.me: discord.PermissionOverwrite(read_messages=True),
-                        self.user: discord.PermissionOverwrite(read_messages=True)
-                    }
-
-                    c.execute('SELECT SUPPORT_ROLE_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
-                    support_role_id = c.fetchone()[0]
-                    if support_role_id is not None:
-                        guild = bot.get_guild(MAIN_GUILD)
-                        support_role: discord.Role = guild.get_role(int(support_role_id))
-                        if support_role:
-                            overwrites[support_role] = discord.PermissionOverwrite(read_messages=True)
-
-                    channel_name = f"⚠ {self.user.name}"
-                    ticket_channel = await interaction.guild.create_text_channel(channel_name, category=category, overwrites=overwrites)
+            ticket_embed = discord.Embed(
+               title=title,
+               description=description,
+               color=discord.Color.blue(),
+               timestamp=datetime.datetime.now(datetime.timezone.utc)
+            )
+            ticket_embed.set_footer(text=f"Ticket erstellt von {self.user}", icon_url=self.user.avatar.url if self.user.avatar else '')
+    
+            admin_embed = discord.Embed(
+                title="Admincommands",
+                description="Das sind die Admincommands für das Ticketsystem.",
+                color=discord.Color.purple(),
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
+            )
+            admin_embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+    
+            close_button = discord.ui.Button(label="✅ Schließen", style=discord.ButtonStyle.blurple, custom_id="close_ticket")
+            add_button = discord.ui.Button(label="➕ Hinzufügen", style=discord.ButtonStyle.green, custom_id="add_ticket")
+            remove_button = discord.ui.Button(label="➖ Entfernen", style=discord.ButtonStyle.red, custom_id="remove_ticket")
+        
+            admin_view = discord.ui.View()
+            admin_view.add_item(close_button)
+            admin_view.add_item(add_button)
+            admin_view.add_item(remove_button)
+            
+            await ticket_channel.send(embed=admin_embed, view=admin_view)
+            await ticket_channel.send(embed=ticket_embed)
+            await ticket_channel.send(content=f"Hey listen <@&{support_role_id}>, es gibt ein neues Ticket.") # Wenn geändert, ändere Text in ticket.py, um vom Transcript auszunehmen.
+            try:
+                c.execute('INSERT INTO CREATED_TICKETS (USER_ID, CHANNEL_ID, GUILD_ID, CATEGORY) VALUES (?, ?, ?, ?)', (self.user.id, ticket_channel.id, interaction.guild.id, self.category))
+                conn.commit()
+                program_logger.debug(f'Ticket wurde erfolgreich erstellt ({self.user.id}, {ticket_channel.id}, {interaction.guild.id}, {self.category}).')
+            except Exception as e:
+                program_logger.error(f'Fehler beim einfügen in die Datenbank: {e}')
+            await interaction.response.send_message(f'Dein Ticket wurde erstellt: {ticket_channel.mention}', ephemeral=True)
+    
+    async def on_interaction(interaction: discord.Interaction):
+        if interaction.response.is_done():
+            return
+        if interaction.data and interaction.data.get('component_type') == 3: #3 ist Dropdown
+            button_id = interaction.data.get('custom_id')
+            if button_id == ("support_menu"):
+                selected_value = interaction.data.get('values', [None])[0]
+                program_logger.debug(f"Support Menu gewählt: {selected_value}")
+                category = selected_value
+                modal = DiscordEvents._TicketModal(category, interaction.user)
+                await interaction.response.send_modal(modal)
                     
-                    ticket_embed = discord.Embed(
-                       title=title,
-                       description=description,
-                       color=discord.Color.blue(),
-                       timestamp=datetime.datetime.now(datetime.timezone.utc)
-                    )
-                    ticket_embed.set_footer(text=f"Ticket erstellt von {self.user}", icon_url=self.user.avatar.url if self.user.avatar else '')
-
-                    admin_embed = discord.Embed(
-                        title="Admincommands",
-                        description="Das sind die Admincommands für das Ticketsystem.",
-                        color=discord.Color.purple(),
-                        timestamp=datetime.datetime.now(datetime.timezone.utc)
-                    )
-                    admin_embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
-
-                    close_button = discord.ui.Button(label="✅ Schließen", style=discord.ButtonStyle.blurple, custom_id="close_ticket")
-                    add_button = discord.ui.Button(label="➕ Hinzufügen", style=discord.ButtonStyle.green, custom_id="add_ticket")
-                    remove_button = discord.ui.Button(label="➖ Entfernen", style=discord.ButtonStyle.red, custom_id="remove_ticket")
-                
-                    admin_view = discord.ui.View()
-                    admin_view.add_item(close_button)
-                    admin_view.add_item(add_button)
-                    admin_view.add_item(remove_button)
-                    
-                    await ticket_channel.send(embed=admin_embed, view=admin_view)
-                    await ticket_channel.send(embed=ticket_embed)
-                    await ticket_channel.send(content=f"Hey listen <@&{support_role_id}>, es gibt ein neues Ticket.") # Wenn geändert, ändere Text in ticket.py, um vom Transcript auszunehmen.
+        elif interaction.data and interaction.data.get('component_type') == 2: #2 ist Button
+            button_id = interaction.data.get('custom_id')
+            if button_id == ("close_ticket"):
+                isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
+                if not isAdminOrSupport:
+                    await interaction.response.send_message(content="Du hast nicht das Recht diesen Button zu verwenden!", ephemeral=True)
+                    return
+        
+                updated_view = discord.ui.View.from_message(interaction.message)
+                for item in updated_view.children:
+                    if isinstance(item, discord.ui.Button) and item.custom_id == "close_ticket":
+                        item.disabled = True                   
+                await interaction.message.edit(view=updated_view)
+        
+                channel = interaction.channel
+                c.execute('SELECT * FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
+                data_created_tickets = c.fetchone()
+                if data_created_tickets is None:
+                    return
+                await interaction.response.defer(ephemeral=True)
+        
+                overwrite = discord.PermissionOverwrite()
+                overwrite.send_messages = False 
+                overwrite.add_reactions = False  
+                overwrite.read_messages = False 
+                await interaction.channel.set_permissions(interaction.guild.default_role, overwrite=overwrite)
+        
+                transcript = await TicketSystem.create_ticket(interaction.channel.id, data_created_tickets[1])
+                user: discord.User = await Functions.get_or_fetch('user', data_created_tickets[1])
+                with open(transcript, 'rb') as f:
                     try:
-                        c.execute('INSERT INTO CREATED_TICKETS (USER_ID, CHANNEL_ID, GUILD_ID, CATEGORY) VALUES (?, ?, ?, ?)', (self.user.id, ticket_channel.id, interaction.guild.id, self.category))
-                        conn.commit()
-                        program_logger.debug(f'Ticket wurde erfolgreich erstellt ({self.user.id}, {ticket_channel.id}, {interaction.guild.id}, {self.category}).')
+                         await user.send(file=discord.File(f))
                     except Exception as e:
-                        program_logger.error(f'Fehler beim einfügen in die Datenbank: {e}')
-                    await interaction.response.send_message(f'Dein Ticket wurde erstellt: {ticket_channel.mention}', ephemeral=True)
-
-            if interaction.data and interaction.data.get('component_type') == 3: #3 ist Dropdown
-                button_id = interaction.data.get('custom_id')
-                if button_id == ("support_menu"):
-                    selected_value = interaction.data.get('values', [None])[0]
-                    program_logger.debug(f"Support Menu gewählt: {selected_value}")
-                    category = selected_value
-                    modal = TicketModal(category, interaction.user)
-                    await interaction.response.send_modal(modal)
-                        
-            elif interaction.data and interaction.data.get('component_type') == 2: #2 ist Button
-                button_id = interaction.data.get('custom_id')
-                if button_id == ("close_ticket"):
-                    isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
-                    if not isAdminOrSupport:
-                        await interaction.response.send_message(content="Du hast nicht das Recht diesen Button zu verwenden!", ephemeral=True)
-                        return
-
-                    updated_view = discord.ui.View.from_message(interaction.message)
-                    for item in updated_view.children:
-                        if isinstance(item, discord.ui.Button) and item.custom_id == "close_ticket":
-                            item.disabled = True                   
-                    await interaction.message.edit(view=updated_view)
-
-                    channel = interaction.channel
-                    c.execute('SELECT * FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
-                    data_created_tickets = c.fetchone()
-                    if data_created_tickets is None:
-                        return
-                    await interaction.response.defer(ephemeral=True)
-
-                    overwrite = discord.PermissionOverwrite()
-                    overwrite.send_messages = False 
-                    overwrite.add_reactions = False  
-                    overwrite.read_messages = False 
-                    await interaction.channel.set_permissions(interaction.guild.default_role, overwrite=overwrite)
-
-                    transcript = await TicketSystem.create_ticket(interaction.channel.id, data_created_tickets[1])
-                    user: discord.User = await Functions.get_or_fetch('user', data_created_tickets[1])
-                    with open(transcript, 'rb') as f:
-                        try:
-                             await user.send(file=discord.File(f))
-                        except Exception as e:
-                            if not e.code == 50007:
-                               program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')
-
-                    c.execute('SELECT ARCHIVE_CHANNEL_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
-                    archive_channel_id = c.fetchone()[0]
-                    if archive_channel_id is None:
-                        return
-                    archive_channel: discord.TextChannel = await Functions.get_or_fetch('channel', archive_channel_id)
+                        if not e.code == 50007:
+                           program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')
+        
+                c.execute('SELECT ARCHIVE_CHANNEL_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
+                archive_channel_id = c.fetchone()[0]
+                if archive_channel_id is None:
+                    return
+                archive_channel: discord.TextChannel = await Functions.get_or_fetch('channel', archive_channel_id)
+                try:
+                    await archive_channel.send(content=f'Kategorie: {data_created_tickets[4]}\nUser: <@{data_created_tickets[1]}>', file=discord.File(transcript))
+                except Exception as e:
+                    program_logger.warning(f"Transcript couldn't be send to archive. -> {e}")
+        
+                os.remove(transcript)
+                c.execute('DELETE FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
+                conn.commit()
+                await channel.delete()
+               
+            elif button_id == ("add_ticket"):
+                isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
+                if not isAdminOrSupport:
+                    await interaction.response.send_message(content="Du hast nicht das Recht, diesen Button zu verwenden!", ephemeral=True)
+                    return
+        
+                channel = interaction.channel
+                modal = DiscordEvents._AddUserModal(channel)
+                await interaction.response.send_modal(modal)
+            elif button_id == ("remove_ticket"):
+                isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
+                if not isAdminOrSupport:
+                    await interaction.response.send_message(content="Du hast nicht das Recht, diesen Button zu verwenden!", ephemeral=True)
+                    return
+        
+                channel = interaction.channel
+                modal = DiscordEvents._RemoveUserModal(channel)
+                await interaction.response.send_modal(modal)
+            elif button_id == 'verify':
+                if interaction.user.id in bot.captcha_timeout:
                     try:
-                        await archive_channel.send(content=f'Kategorie: {data_created_tickets[4]}\nUser: <@{data_created_tickets[1]}>', file=discord.File(transcript))
-                    except Exception as e:
-                        program_logger.warning(f"Transcript couldn't be send to archive. -> {e}")
-
-                    os.remove(transcript)
-                    c.execute('DELETE FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
-                    conn.commit()
-                    await channel.delete()
-                   
-                elif button_id == ("add_ticket"):
-                    isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
-                    if not isAdminOrSupport:
-                        await interaction.response.send_message(content="Du hast nicht das Recht, diesen Button zu verwenden!", ephemeral=True)
-                        return
-
-                    channel = interaction.channel
-                    modal = AddUserModal(channel)
-                    await interaction.response.send_modal(modal)
-                elif button_id == ("remove_ticket"):
-                    isAdminOrSupport = await Functions.isAdminOrSupport(interaction)
-                    if not isAdminOrSupport:
-                        await interaction.response.send_message(content="Du hast nicht das Recht, diesen Button zu verwenden!", ephemeral=True)
-                        return
-
-                    channel = interaction.channel
-                    modal = RemoveUserModal(channel)
-                    await interaction.response.send_modal(modal)
-                elif button_id == 'verify':
-                    if interaction.user.id in bot.captcha_timeout:
+                        await interaction.response.send_message('Bitte warte ein paar Sekunden.', ephemeral=True)
+                    except discord.NotFound:
                         try:
-                            await interaction.response.send_message('Bitte warte ein paar Sekunden.', ephemeral=True)
+                            await interaction.followup.send('Bitte warte ein paar Sekunden.', ephemeral=True)
                         except discord.NotFound:
-                            try:
-                                await interaction.followup.send('Bitte warte ein paar Sekunden.', ephemeral=True)
-                            except discord.NotFound:
-                                pass
-                        return
-                    else:
-                        await Functions.verify(interaction)
-                        return
+                            pass
+                    return
+                else:
+                    await Functions.verify(interaction)
+                    return
 
-    async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError) -> None:
+    async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
         options = interaction.data.get("options")
         option_values = ""
         if options:
@@ -571,12 +408,17 @@ class aclient(discord.AutoShardedClient):
                 except AttributeError:
                     program_logger.warning(f"{error} -> {option_values} | Invoked by {interaction.user.name} ({interaction.user.id}) with Language {interaction.locale[1]}")
 
-    async def on_guild_join(self, guild):
-        if not self.synced:
+    async def on_guild_join(guild: discord.Guild):
+        if not bot.synced:
             return
         discord_logger.info(f'Ich wurde zu {guild} hinzugefügt. (ID: {guild.id})')
-        
-    async def on_guild_channel_update(self, before, after):
+
+    async def on_guild_remove(guild):
+        if not bot.synced:
+            return
+        program_logger.info(f'Ich wurde von {guild} gekickt. (ID: {guild.id})')
+
+    async def on_guild_channel_update(before, after):
         if before.position != after.position and before.name == after.name:
             return
 
@@ -586,20 +428,20 @@ class aclient(discord.AutoShardedClient):
             color=discord.Color.orange(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=self.user.avatar.url if self.user.avatar else '')
+        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         if before.name != after.name:
            embed.add_field(name="Name geändert", value=f"Von **{before.name}** zu **{after.name}**", inline=False)
         ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
         await ca.send(embed=embed)
-        
-    async def on_guild_update(self, before, after):
+
+    async def on_guild_update(before, after):
        embed = discord.Embed(
            title="⚙️ Server-Einstellungen geändert",
            description=f"Der Server **{before.name}** hat Änderungen erfahren.",
            color=discord.Color.purple(),
            timestamp=datetime.datetime.now(datetime.timezone.utc)
        )
-       embed.set_footer(text=FOOTER_TEXT, icon_url=self.user.avatar.url if self.user.avatar else '')
+       embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
        if before.name != after.name:
            embed.add_field(name="Servername geändert", value=f"Von **{before.name}** zu **{after.name}**", inline=False)
        if before.icon != after.icon:
@@ -616,7 +458,7 @@ class aclient(discord.AutoShardedClient):
        ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
        await ca.send(embed=embed)
 
-    async def on_guild_channel_create(self, channel):
+    async def on_guild_channel_create(channel):
         category = channel.category.name if channel.category else "Keine Kategorie"
         embed = discord.Embed(
             title="📁 Neuer Channel erstellt",
@@ -661,7 +503,7 @@ class aclient(discord.AutoShardedClient):
         embed.add_field(name="Channel ID:", value=channel.id)
         field_count += 1
 
-        embed.set_footer(text=FOOTER_TEXT, icon_url=self.user.avatar.url if self.user.avatar else '')
+        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
         try:
             ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
@@ -669,18 +511,18 @@ class aclient(discord.AutoShardedClient):
         except Exception as e:
             program_logger.error(f"Error while sending channel create log: {e}")
 
-    async def on_guild_channel_delete(self, channel):
+    async def on_guild_channel_delete(channel):
         embed = discord.Embed(
             title="🗑️ Channel gelöscht",
             description=f"Channel **{channel.name}** wurde gelöscht.",
             color=discord.Color.red(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=self.user.avatar.url if self.user.avatar else '')
+        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
         await ca.send(embed=embed)
-    
-    async def on_guild_role_create(self, role):
+
+    async def on_guild_role_create(role):
         guild = role.guild
         embed = discord.Embed(
             title="➕ Neue Rolle erstellt",
@@ -693,26 +535,26 @@ class aclient(discord.AutoShardedClient):
         embed.add_field(name="Getrennt angezeigt:", value="✅" if role.hoist else "❌", inline=False)
         embed.add_field(name="Rollen ID:", value=role.id, inline=False)
 
-        embed.set_footer(text=FOOTER_TEXT, icon_url=self.user.avatar.url if self.user.avatar else '')
+        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
         try:
             ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
             await ca.send(embed=embed)
         except Exception as e:
             program_logger.error(f"Error while sending role create log: {e}")
-    
-    async def on_guild_role_delete(self, role):
+
+    async def on_guild_role_delete(role):
         embed = discord.Embed(
             title="➖ Rolle gelöscht",
             description=f"Rolle **{role.name}** wurde gelöscht.",
             color=discord.Color.red(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=self.user.avatar.url if self.user.avatar else '')
+        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
         await ca.send(embed=embed)
-    
-    async def on_guild_role_update(self, before, after):
+
+    async def on_guild_role_update(before, after):
         ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
 
         embeds = []
@@ -768,13 +610,13 @@ class aclient(discord.AutoShardedClient):
         embeds.append(embed)
 
         for emb in embeds:
-            emb.set_footer(text=FOOTER_TEXT, icon_url=self.user.avatar.url if self.user.avatar else '')
+            emb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
             try:
                 await ca.send(embed=emb)
             except Exception as e:
                 program_logger.error(f"Error while sending role update log: {e}")
-        
-    async def on_message_delete(self, message):
+
+    async def on_message_delete(message):
         embed = discord.Embed(
             title="🗑️ Nachricht gelöscht",
             description=f"Nachricht von {message.author.mention} wurde gelöscht.",
@@ -782,7 +624,7 @@ class aclient(discord.AutoShardedClient):
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         embed.add_field(name="Inhalt", value=message.content, inline=False)
-        embed.set_footer(text=FOOTER_TEXT, icon_url=self.user.avatar.url if self.user.avatar else '')
+        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
     
         try:
             async for entry in message.guild.audit_logs(limit=1, action=discord.AuditLogAction.message_delete):
@@ -796,15 +638,15 @@ class aclient(discord.AutoShardedClient):
             program_logger.error(f"Error while sending message delete log: {e}")
         except discord.Forbidden:
             program_logger.error(f"Missing permissions to read audit log in guild: {message.guild.id}")
-     
-    async def on_member_update(self, before, after):
+
+    async def on_member_update(before, after):
         embed = discord.Embed(
             title="🔄 Mitglied aktualisiert",
             description=f"Änderungen an **{after.name}** (ID: {after.id})",
             color=discord.Color.blue(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=self.user.avatar.url if self.user.avatar else '')
+        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         
         changes = []
 
@@ -837,26 +679,8 @@ class aclient(discord.AutoShardedClient):
             embed.add_field(name="Änderungen:", value="\n".join(changes), inline=False)
             ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
             await ca.send(embed=embed)
-            
-    # async def on_voice_state_update(member, before, after):
-    #     guild = member.guild
-        
-    #     if after.channel and after.channel.name == channel_sys_name:
-    #         private_channel = await Functions.create_private_voice_channel(member)
-            
-    #         await member.move_to(private_channel)
-            
-    #         embed = discord.Embed(
-    #             title="Channel Verwaltung",
-    #             description="Nutze die unteren Buttons um den Channel zu verwalten.",
-    #             timestamp=datetime.datetime.now(datetime.timezone.utc),
-    #             color=discord.Color.dark_gold(),
-    #         )
-    #         view = ChannelManagementView(private_channel, member)
-            
-    #         await private_channel.send(embed=embed, view=view)
 
-    async def on_message(self, message):
+    async def on_message(message):
         async def __wrong_selection():
             await message.channel.send(
                   '```'
@@ -898,12 +722,7 @@ class aclient(discord.AutoShardedClient):
 
         await Functions.check_message(message)
 
-    async def on_guild_remove(self, guild):
-        if not self.synced:
-            return
-        program_logger.info(f'Ich wurde von {guild} gekickt. (ID: {guild.id})')
-        
-    async def on_member_join(self, member: discord.Member):
+    async def on_member_join(member: discord.Member):
             member_anzahl = len(member.guild.members) 
             welcome_embed = discord.Embed(
                 title='👋 Willkommen',
@@ -921,8 +740,8 @@ class aclient(discord.AutoShardedClient):
                     await channel.send(embed=welcome_embed)
                 except Exception as e:
                     program_logger.error(f"Error while sending welcome message: {e}")
-                
-    async def on_member_remove(self, member: discord.Member):
+
+    async def on_member_remove(member: discord.Member):
         member_anzahl = len(member.guild.members)
         leave_embed = discord.Embed(
             title='👋 Auf Wiedersehen',
@@ -940,15 +759,67 @@ class aclient(discord.AutoShardedClient):
                 await channel.send(embed=leave_embed)
             except Exception as e:
                    program_logger.error(f"Error while sending leave message: {e}")
-            
-        
+
+class aclient(discord.AutoShardedClient):
+    def __init__(self):
+
+        intents = discord.Intents.default()
+        intents.members = True
+        intents.guilds = True
+        intents.dm_messages = True
+        intents.message_content = True
+        intents.guild_messages = True
+
+        super().__init__(owner_id = OWNERID,
+                              intents = intents,
+                              status = discord.Status.invisible,
+                              auto_reconnect = True
+                        )
+        self.synced = False
+        self.initialized = False
+        self.captcha_timeout = []
+        self.message_cache = {}
+
+    class Presence():
+        @staticmethod
+        def get_activity() -> discord.Activity:
+            with open(ACTIVITY_FILE) as f:
+                data = json.load(f)
+                activity_type = data['activity_type']
+                activity_title = data['activity_title']
+                activity_url = data['activity_url']
+            if activity_type == 'Playing':
+                return discord.Game(name=activity_title)
+            elif activity_type == 'Streaming':
+                return discord.Streaming(name=activity_title, url=activity_url)
+            elif activity_type == 'Listening':
+                return discord.Activity(type=discord.ActivityType.listening, name=activity_title)
+            elif activity_type == 'Watching':
+                return discord.Activity(type=discord.ActivityType.watching, name=activity_title)
+            elif activity_type == 'Competing':
+                return discord.Activity(type=discord.ActivityType.competing, name=activity_title)
+
+        @staticmethod
+        def get_status() -> discord.Status:
+            with open(ACTIVITY_FILE) as f:
+                data = json.load(f)
+                status = data['status']
+            if status == 'online':
+                return discord.Status.online
+            elif status == 'idle':
+                return discord.Status.idle
+            elif status == 'dnd':
+                return discord.Status.dnd
+            elif status == 'invisible':
+                return discord.Status.invisible  
+    
     async def setup_hook(self):
         global owner, shutdown, conn, c, logger
         shutdown = False
         try:
             conn = sqlite3.connect(SQL_FILE)
             c = conn.cursor()
-            await self.setup_database()
+            await database_setup.database(c).setup_database()
         except sqlite3.Error as e:
             program_logger.critical(f"Error while connecting to the database: {e}")
             sys.exit(f"Error while connecting to the database: {e}")
@@ -985,8 +856,25 @@ class aclient(discord.AutoShardedClient):
         program_logger.info(f"Fertig geladen in {time.time() - startupTime_start:.2f} Sekunden.")
         self.initialized = True    
 bot = aclient()
+bot.on_message = DiscordEvents.on_message
+bot.on_app_command_error = DiscordEvents.on_app_command_error
+bot.on_member_remove = DiscordEvents.on_member_remove
+bot.on_member_join = DiscordEvents.on_member_join
+bot.on_guild_remove = DiscordEvents.on_guild_remove
+bot.on_member_update = DiscordEvents.on_member_update
+bot.on_message_delete = DiscordEvents.on_message_delete
+bot.on_guild_role_update = DiscordEvents.on_guild_role_update
+bot.on_guild_role_delete = DiscordEvents.on_guild_role_delete
+bot.on_guild_role_create = DiscordEvents.on_guild_role_create
+bot.on_guild_channel_delete = DiscordEvents.on_guild_channel_delete
+bot.on_guild_channel_create = DiscordEvents.on_guild_channel_create
+bot.on_guild_update = DiscordEvents.on_guild_update
+bot.on_guild_channel_update = DiscordEvents.on_guild_channel_update
+bot.on_guild_join = DiscordEvents.on_guild_join
+bot.on_interaction = DiscordEvents.on_interaction
 tree = discord.app_commands.CommandTree(bot)
 tree.on_error = bot.on_app_command_error
+
 
 context_commands.setup(tree)
 
@@ -1003,6 +891,8 @@ class SignalHandler:
 
 if platform.system() == 'Windows':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
 
 class Functions():
     def format_seconds(seconds):
@@ -1037,18 +927,6 @@ class Functions():
         except Exception as e:
             program_logger.error(f'Fehler beim laden der Teams: {e}')
             return {}
-        
-    # async def ChannelSystem():
-    #     global channel_sys_name
-    #     channel_sys_name = "🆕 Erstelle hier einen Channel"        
-    #     for guild in bot.guilds:
-    #         existing_channel = discord.utils.get(guild.voice_channels, name=channel_sys_name)
-    #         if existing_channel is None:
-    #             overwrites = {
-    #                 guild.default_role: discord.PermissionOverwrite(connect=False),
-    #                 guild.me: discord.PermissionOverwrite(connect=True)
-    #             }
-    #             await guild.create_voice_channel(channel_sys_name, overwrites=overwrites)
     
     async def verify(interaction: discord.Interaction):
         class CaptchaInput(discord.ui.Modal, title = 'Verification'):
@@ -1116,7 +994,6 @@ class Functions():
 
         bot.captcha_timeout.append(interaction.user.id)
         await interaction.response.send_message(f'Bitte verifiziere dich, um Zugang zu diesem Server zu erhalten.\n\n**Captcha:**', file = captcha_picture, view = SubmitView(), ephemeral = True)
-
 
     async def send_logging_message(interaction: discord.Interaction = None, member: discord.Member = None, kind: str = '', mass_amount: int = 0):
         if interaction is not None:
@@ -1361,8 +1238,6 @@ class Functions():
                 await message.author.send(embed=emb)
             except discord.Forbidden:
                 pass
-            finally:
-                return
 
     async def isSpamming(message: discord.Message) -> bool:
         author = message.author
@@ -1704,8 +1579,7 @@ class Tasks():
             except asyncio.CancelledError:
                 pass
 
-          
-            
+                 
 class Owner():
     async def log(message, args):
         async def __wrong_selection():
@@ -1869,6 +1743,7 @@ class Owner():
 
         await bot.close()
         
+
 
 @tree.command(name = 'ping', description = 'Test, if the bot is responding.')
 @discord.app_commands.checks.cooldown(1, 30, key=lambda i: (i.user.id))
