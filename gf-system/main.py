@@ -1,5 +1,9 @@
 ﻿# -*- coding: utf-8 -*-
 #Import
+
+# Todo: • Abmeldungen für TB
+#       • Private Sprachchannel
+
 import time
 startupTime_start = time.time()
 import asyncio
@@ -46,7 +50,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.5.1"
+BOT_VERSION = "1.6.0"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -471,11 +475,18 @@ class aclient(discord.AutoShardedClient):
                     if data_created_tickets is None:
                         return
                     await interaction.response.defer(ephemeral=True)
-                    await TicketSystem.create_ticket(interaction.channel.id, data_created_tickets[1])
+
+                    overwrite = discord.PermissionOverwrite()
+                    overwrite.send_messages = False 
+                    overwrite.add_reactions = False  
+                    overwrite.read_messages = False 
+                    await interaction.channel.set_permissions(interaction.guild.default_role, overwrite=overwrite)
+
+                    transcript = await TicketSystem.create_ticket(interaction.channel.id, data_created_tickets[1])
                     user: discord.User = await Functions.get_or_fetch('user', data_created_tickets[1])
-                    with open(f'{BUFFER_FOLDER}ticket-{interaction.channel.id}.html', 'r') as f:
+                    with open(transcript, 'rb') as f:
                         try:
-                             await user.send(file=discord.File(f'{BUFFER_FOLDER}/ticket-{interaction.channel.id}.html'))
+                             await user.send(file=discord.File(f))
                         except Exception as e:
                             if not e.code == 50007:
                                program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')
@@ -486,11 +497,11 @@ class aclient(discord.AutoShardedClient):
                         return
                     archive_channel: discord.TextChannel = await Functions.get_or_fetch('channel', archive_channel_id)
                     try:
-                        await archive_channel.send(content=f'Kategorie: {data_created_tickets[4]}\nUser: <@{data_created_tickets[1]}>', file=discord.File(f'{BUFFER_FOLDER}/ticket-{interaction.channel.id}.html'))
+                        await archive_channel.send(content=f'Kategorie: {data_created_tickets[4]}\nUser: <@{data_created_tickets[1]}>', file=discord.File(transcript))
                     except Exception as e:
                         program_logger.warning(f"Transcript couldn't be send to archive. -> {e}")
 
-                    os.remove(f'{BUFFER_FOLDER}ticket-{interaction.channel.id}.html')
+                    os.remove(transcript)
                     c.execute('DELETE FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
                     conn.commit()
                     await channel.delete()
@@ -2359,7 +2370,7 @@ async def self(interaction: discord.Interaction, channel: discord.TextChannel, a
             program_logger.warning(text)
             await interaction.response.send_message(text)
             
-@tree.command(name = 'remove_ticket_channel', description = 'remvoes the ticket channel.')
+@tree.command(name = 'remove_ticket_channel', description = 'removes the ticket channel.')
 @discord.app_commands.checks.cooldown(1, 120, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(administrator = True)
 async def self(interaction: discord.Interaction):
