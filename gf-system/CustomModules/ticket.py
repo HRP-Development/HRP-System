@@ -26,6 +26,7 @@ class TicketHTML:
     async def create_transcript(self, channel_id, creator):
         messages = []
         downloaded_files_hashes = {}
+        downloaded_emoji_hashes = {}
         op: discord.Member = await self.bot.fetch_user(creator)
         channel: discord.TextChannel = self.bot.get_channel(channel_id)
         ticket_status = "Geschlossen"
@@ -48,6 +49,8 @@ class TicketHTML:
                 reactions_html = "<div class='reactions' style='display: flex; flex-wrap: wrap; gap: 10px;'>"
                 for reaction in message.reactions:
                     reaction_color = "#FFD700" if reaction.burst_count >0 else "rgba(52, 56, 58, 0.1)"
+                    uuid_name = uuid4()
+                    emoji_file_path = os.path.join(media_folder, f'{uuid_name}.png')
             
                     emoji_url = None
                     if isinstance(reaction.emoji, discord.PartialEmoji):
@@ -58,10 +61,18 @@ class TicketHTML:
                                 try:
                                     async with session.get(emoji_url) as resp:
                                         if resp.status == 200:
-                                            with open(os.path.join(media_folder, f"{reaction.emoji.name}.png"), 'wb') as f:
+                                            with open(emoji_file_path, 'wb') as f:
                                                 f.write(await resp.read())
-                                except aiohttp.ClientError as e:
+                                except aiohttp.ClientError:
                                     continue
+
+                            emoji_hash = self.calculate_file_crc32(emoji_file_path)
+        
+                            if emoji_hash in downloaded_emoji_hashes:
+                                os.remove(emoji_file_path)
+                                emoji_file_path = downloaded_emoji_hashes[emoji_hash]
+                            else:
+                                downloaded_emoji_hashes[emoji_hash] = emoji_file_path
             
                     users = []
                     async for user in reaction.users():
@@ -70,7 +81,7 @@ class TicketHTML:
                     
                     reactions_html += f"""
                         <span class='reaction' style='border: 2px solid {reaction_color};'>
-                            {'<img src=\'' + os.path.join(f'ticket-{channel_id}', f"{reaction.emoji.name}.png") + '\' alt=\'emoji\' style=\'width: 20px; height: 20px;\'>' if isinstance(reaction.emoji, discord.PartialEmoji) else reaction.emoji}
+                            {'<img src=\'' + os.path.join(f"ticket-{channel_id}", Path(emoji_file_path).name) + '\' alt=\'' + attachment.filename + '\' style=\'width: 20px; height: 20px;\'>' if isinstance(reaction.emoji, discord.PartialEmoji) else reaction.emoji}
                             {users_list} ({reaction.count})
                         </span>
                     """
@@ -96,7 +107,7 @@ class TicketHTML:
             
                         if file_extension in ['png', 'jpg', 'jpeg', 'gif']:
                             attachment_width = attachment.width
-                            img_html = f"<img src='{os.path.join(f"ticket-{channel_id}", Path(media_file_path).name)}' alt='attachment' "
+                            img_html = f"<img src='{os.path.join(f"ticket-{channel_id}", Path(media_file_path).name)}' alt='{attachment.filename}' "
             
                             if attachment_width > 400:
                                 img_html += "class='attachment-image'"
