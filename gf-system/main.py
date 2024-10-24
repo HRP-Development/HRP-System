@@ -1,10 +1,10 @@
 ﻿# -*- coding: utf-8 -*-
 #Import
 
-# Todo: • Lösche alte DB Einträge bei nicht existentem Ticket
-#       • Abmeldungen für TB
+# Todo: • Abmeldungen für TB
 #       • Private Sprachchannel
 #       • Fix das Logs aus einem anderen Server in HRP angezeigt werden
+#       • Channel für Time
 
 import time
 startupTime_start = time.time()
@@ -218,8 +218,13 @@ class DiscordEvents():
             c.execute('SELECT * FROM CREATED_TICKETS WHERE USER_ID = ? AND GUILD_ID = ? AND CATEGORY = ?', (interaction.user.id, interaction.guild.id, self.category))
             data = c.fetchone()
             if data is not None:
-                await interaction.response.send_message(content=f"Du hast bereits ein offenes Ticket für die Kategorie {self.category}.: <#{data[2]}>\nDu kannst nur ein Ticket pro Kategorie zur selben Zeit offen haben.", ephemeral=True)
-                return
+                channel = await Functions.get_or_fetch('channel', int(data[2]))
+                if channel is not None:
+                    await interaction.response.send_message(content=f"Du hast bereits ein offenes Ticket für die Kategorie {self.category}.: <#{data[2]}>\nDu kannst nur ein Ticket pro Kategorie zur selben Zeit offen haben.", ephemeral=True)
+                    return
+                else:
+                    c.execute('DELETE FROM CREATED_TICKETS WHERE USER_ID = ? AND GUILD_ID = ? AND CATEGORY = ?', (interaction.user.id, interaction.guild.id, self.category))
+                    conn.commit()
     
             title = self.title_input.value
             description = self.description_input.value
