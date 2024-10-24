@@ -1,8 +1,10 @@
 ﻿# -*- coding: utf-8 -*-
 #Import
 
-# Todo: • Abmeldungen für TB
+# Todo: • Lösche alte DB Einträge bei nicht existentem Ticket
+#       • Abmeldungen für TB
 #       • Private Sprachchannel
+#       • Fix das Logs aus einem anderen Server in HRP angezeigt werden
 
 import time
 startupTime_start = time.time()
@@ -319,7 +321,7 @@ class DiscordEvents():
                 overwrite.read_messages = False 
                 await interaction.channel.set_permissions(interaction.guild.default_role, overwrite=overwrite)
         
-                transcript = await TicketSystem.create_ticket(interaction.channel.id, data_created_tickets[1])
+                transcript = await TicketSystem.create_transcript(interaction.channel.id, data_created_tickets[1])
                 user: discord.User = await Functions.get_or_fetch('user', data_created_tickets[1])
                 with open(transcript, 'rb') as f:
                     try:
@@ -2492,6 +2494,23 @@ async def self(interaction: discord.Interaction, user: discord.Member):
 
 
 
+@tree.command(name='debug_close')
+@discord.app_commands.checks.has_permissions(administrator = True)
+async def self(interaction:discord.Interaction):
+    await interaction.response.send_message("Channel wird gelöscht...",ephemeral=True)
+    channel = interaction.channel
+    c.execute('SELECT * FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
+    data_created_tickets = c.fetchone()
+    transcript = await TicketSystem.create_transcript(interaction.channel.id, data_created_tickets[1])
+    user: discord.User = await Functions.get_or_fetch('user', data_created_tickets[1])
+    with open(transcript, 'rb') as f:
+        try:
+             await user.send(file=discord.File(f))
+        except Exception as e:
+            if not e.code == 50007:
+               program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')
+
+    os.remove(transcript)
 
 
 

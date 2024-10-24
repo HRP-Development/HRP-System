@@ -13,7 +13,7 @@ class TicketHTML:
         self.bot = bot
         self.buffer_folder = buffer_folder
 
-    async def create_ticket(self, channel_id, creator):
+    async def create_transcript(self, channel_id, creator):
         messages = []
         op: discord.Member = await self.bot.fetch_user(creator)
         channel: discord.TextChannel = self.bot.get_channel(channel_id)
@@ -66,7 +66,37 @@ class TicketHTML:
                     """
                 reactions_html += "</div>"
 
-            if message.content:
+            if message.content or message.attachments:
+                attachment_html = ""
+                for attachment in message.attachments:
+                    file_extension = attachment.filename.split('.')[-1].lower()
+                    media_file_path = os.path.join(media_folder, attachment.filename)
+                    
+                    if attachment.size <= 8 * 1024 * 1024:
+                        await attachment.save(media_file_path)
+            
+                        if file_extension in ['png', 'jpg', 'jpeg', 'gif']:
+                            attachment_width = attachment.width
+                            img_html = f"<img src='{os.path.join(f'ticket-{channel_id}', attachment.filename)}' alt='attachment' "
+            
+                            if attachment_width > 400:
+                                img_html += "class='attachment-image'"
+                            img_html += ">"
+                            attachment_html += img_html
+            
+                        elif file_extension in ['mp4', 'webm']:
+                            attachment_html += f"""
+                            <video controls class="attachment-video">
+                                <source src='{os.path.join(f"ticket-{channel_id}", attachment.filename)}' type='video/{file_extension}'>
+                                Your browser does not support the video tag.
+                            </video>
+                            """
+                        else:
+                            attachment_html += f"<p>Datei: <a href='{os.path.join(f"ticket-{channel_id}", attachment.filename)}' download>{attachment.filename}</a></p>"
+            
+                    else:
+                        attachment_html += f"<p>[TICKET TRANSCRIPT] Die Datei <strong>{attachment.filename}</strong> ist zu groß (maximal 8 MB) und konnte nicht heruntergeladen werden.</p>"
+            
                 messages.append(f"""
                 <div class="message">
                     <img src='{avatar_url}' alt='avatar' class="avatar">
@@ -76,6 +106,7 @@ class TicketHTML:
                             <span class="timestamp">{message.created_at.astimezone(berlin_tz).strftime('%d.%m.%Y - %H:%M')}</span>
                         </div>
                         <p>{message.content}</p>
+                        {attachment_html}
                         {reactions_html}
                     </div>
                 </div>
@@ -102,81 +133,6 @@ class TicketHTML:
                     </div>
                 </div>
                 """)
-
-            for attachment in message.attachments:
-                file_extension = attachment.filename.split('.')[-1].lower()
-                media_file_path = os.path.join(media_folder, attachment.filename)
-                
-                if attachment.size <= 8 * 1024 * 1024:
-                    await attachment.save(media_file_path)
-
-                    if file_extension in ['png', 'jpg', 'jpeg', 'gif']:
-                        attachment_width = attachment.width
-                        attachment_html = f"<img src='{os.path.join(f'ticket-{channel_id}', attachment.filename)}' alt='attachment' "
-
-                        if attachment_width > 400:
-                            attachment_html += "class='attachment-image'"
-                        attachment_html += ">"
-
-                        messages.append(f"""
-                        <div class="message">
-                            <img src='{avatar_url}' alt='avatar' class="avatar">
-                            <div class="message-content">
-                                <div class='message-header'>
-                                    <span class="author-name">{message.author.name}</span>
-                                    <span class="timestamp">{message.created_at.astimezone(berlin_tz).strftime('%d.%m.%Y - %H:%M')}</span>
-                                </div>
-                                {attachment_html}
-                                {reactions_html}
-                            </div>
-                        </div>
-                        """)
-                    elif file_extension in ['mp4', 'webm']:
-                        messages.append(f"""
-                        <div class="message">
-                            <img src='{avatar_url}' alt='avatar' class="avatar">
-                            <div class="message-content">
-                                <div class='message-header'>
-                                    <span class="author-name">{message.author.name}</span>
-                                    <span class="timestamp">{message.created_at.astimezone(berlin_tz).strftime('%d.%m.%Y - %H:%M')}</span>
-                                </div>
-                                <video controls class="attachment-video">
-                                    <source src='{os.path.join(f"ticket-{channel_id}", attachment.filename)}' type='video/{file_extension}'>
-                                    Your browser does not support the video tag.
-                                </video>
-                                {reactions_html}
-                            </div>
-                        </div>
-                        """)
-                    else:
-                        messages.append(f"""
-                        <div class="message">
-                            <img src='{avatar_url}' alt='avatar' class="avatar">
-                            <div class="message-content">
-                                <div class='message-header'>
-                                    <span class="author-name">{message.author.name}</span>
-                                    <span class="timestamp">{message.created_at.astimezone(berlin_tz).strftime('%d.%m.%Y - %H:%M')}</span>
-                                </div>
-                                <p>Datei: <a href='{os.path.join(f"ticket-{channel_id}", attachment.filename)}' download>{attachment.filename}</a></p>
-                                {reactions_html}
-                            </div>
-                        </div>
-                        """)
-
-                else:
-                    messages.append(f"""
-                    <div class="message">
-                        <img src='{avatar_url}' alt='avatar' class="avatar">
-                        <div class="message-content">
-                            <div class='message-header'>
-                                <span class="author-name">{message.author.name}</span>
-                                <span class="timestamp">{message.created_at.astimezone(berlin_tz).strftime('%d.%m.%Y - %H:%M')}</span>
-                            </div>
-                            <p>[TICKET TRANSCRIPT] Die Datei <strong>{attachment.filename}</strong> ist zu groß (maximal 8 MB) und konnte nicht heruntergeladen werden.</p>
-                            {reactions_html}
-                        </div>
-                    </div>
-                    """)
 
         messages.reverse()
         messages = "".join(messages)
