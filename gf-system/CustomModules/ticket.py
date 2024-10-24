@@ -5,7 +5,10 @@ import py7zr
 import pytz
 import re
 import shutil
+import zlib
 from datetime import datetime
+from pathlib import Path
+from uuid import uuid4
 
 
 class TicketHTML:
@@ -13,8 +16,16 @@ class TicketHTML:
         self.bot = bot
         self.buffer_folder = buffer_folder
 
+    def calculate_file_crc32(self, file_path):
+        crc32_hash = 0
+        with open(file_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                crc32_hash = zlib.crc32(byte_block, crc32_hash)
+        return format(crc32_hash & 0xFFFFFFFF, '08x')
+
     async def create_transcript(self, channel_id, creator):
         messages = []
+        downloaded_files_hashes = {}
         op: discord.Member = await self.bot.fetch_user(creator)
         channel: discord.TextChannel = self.bot.get_channel(channel_id)
         ticket_status = "Geschlossen"
@@ -50,7 +61,6 @@ class TicketHTML:
                                             with open(os.path.join(media_folder, f"{reaction.emoji.name}.png"), 'wb') as f:
                                                 f.write(await resp.read())
                                 except aiohttp.ClientError as e:
-                                    print(f"Error downloading emoji {reaction.emoji.name}: {e}")
                                     continue
             
                     users = []
@@ -69,15 +79,24 @@ class TicketHTML:
             if message.content or message.attachments:
                 attachment_html = ""
                 for attachment in message.attachments:
+                    uuid_name = uuid4()
                     file_extension = attachment.filename.split('.')[-1].lower()
-                    media_file_path = os.path.join(media_folder, attachment.filename)
+                    media_file_path = os.path.join(media_folder, f'{uuid_name}.{file_extension}')
                     
                     if attachment.size <= 8 * 1024 * 1024:
                         await attachment.save(media_file_path)
+
+                        file_hash = self.calculate_file_crc32(media_file_path)
+        
+                        if file_hash in downloaded_files_hashes:
+                            os.remove(media_file_path)
+                            media_file_path = downloaded_files_hashes[file_hash]
+                        else:
+                            downloaded_files_hashes[file_hash] = media_file_path
             
                         if file_extension in ['png', 'jpg', 'jpeg', 'gif']:
                             attachment_width = attachment.width
-                            img_html = f"<img src='{os.path.join(f'ticket-{channel_id}', attachment.filename)}' alt='attachment' "
+                            img_html = f"<img src='{os.path.join(f"ticket-{channel_id}", Path(media_file_path).name)}' alt='attachment' "
             
                             if attachment_width > 400:
                                 img_html += "class='attachment-image'"
@@ -87,12 +106,12 @@ class TicketHTML:
                         elif file_extension in ['mp4', 'webm']:
                             attachment_html += f"""
                             <video controls class="attachment-video">
-                                <source src='{os.path.join(f"ticket-{channel_id}", attachment.filename)}' type='video/{file_extension}'>
+                                <source src='{os.path.join(f"ticket-{channel_id}", Path(media_file_path).name)}' type='video/{file_extension}'>
                                 Your browser does not support the video tag.
                             </video>
                             """
                         else:
-                            attachment_html += f"<p>Datei: <a href='{os.path.join(f"ticket-{channel_id}", attachment.filename)}' download>{attachment.filename}</a></p>"
+                            attachment_html += f"<p>Datei: <a href='{os.path.join(f"ticket-{channel_id}", Path(media_file_path).name)}' download>{attachment.filename}</a></p>"
             
                     else:
                         attachment_html += f"<p>[TICKET TRANSCRIPT] Die Datei <strong>{attachment.filename}</strong> ist zu groß (maximal 8 MB) und konnte nicht heruntergeladen werden.</p>"
