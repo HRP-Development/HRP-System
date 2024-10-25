@@ -165,7 +165,7 @@ class DiscordEvents():
             user = self.user_id_input.value
             try:
                 user = await Functions.get_or_fetch('user', int(user))
-                await self.channel.set_permissions(user, read_messages=True, send_messages=True, read_message_history=True)
+                await self.channel.set_permissions(user, read_messages=True, send_messages=True, read_message_history=True, embed_links=True, attach_files=True)
                 await interaction.response.send_message(f'{user.mention} wurde zum Ticket hinzugefügt.', ephemeral=True)
             except ValueError:
                 await interaction.response.send_message(content="Die ID darf ausschließlich aus Zahlen bestehen!", ephemeral=True)
@@ -246,7 +246,7 @@ class DiscordEvents():
             overwrites = {
                 interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
                 interaction.guild.me: discord.PermissionOverwrite(read_messages=True),
-                self.user: discord.PermissionOverwrite(read_messages=True)
+                self.user: discord.PermissionOverwrite(read_messages=True, embed_links=True, attach_files=True)
             }
     
             c.execute('SELECT SUPPORT_ROLE_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
@@ -255,7 +255,7 @@ class DiscordEvents():
                 guild = bot.get_guild(MAIN_GUILD)
                 support_role: discord.Role = guild.get_role(int(support_role_id))
                 if support_role:
-                    overwrites[support_role] = discord.PermissionOverwrite(read_messages=True)
+                    overwrites[support_role] = discord.PermissionOverwrite(read_messages=True, embed_links=True, attach_files=True)
     
             channel_name = f"⚠ {self.user.name}"
             ticket_channel = await interaction.guild.create_text_channel(channel_name, category=category, overwrites=overwrites)
