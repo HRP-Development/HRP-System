@@ -5,6 +5,7 @@
 #       • Private Sprachchannel
 #       • Fix das Logs aus einem anderen Server in HRP angezeigt werden
 #       • Channel für Time
+#       • Statdocks
 
 import time
 startupTime_start = time.time()
@@ -31,6 +32,7 @@ from CustomModules.bad_words import BadWords
 from CustomModules import context_commands
 from CustomModules.ticket import TicketHTML
 from CustomModules import epic_games_api
+#from CustomModules import stat_dock
 
 from aiohttp import web
 from rcon import source
@@ -53,7 +55,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.6.0"
+BOT_VERSION = "1.6.1"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -135,6 +137,14 @@ class JSONValidator:
 validator = JSONValidator(ACTIVITY_FILE)
 validator.validate_and_fix_json()
 
+
+try:
+    conn = sqlite3.connect(SQL_FILE)
+    c = conn.cursor()
+    database_setup.database(c).setup_database()
+except sqlite3.Error as e:
+    program_logger.critical(f"Error while connecting to the database: {e}")
+    sys.exit(f"Error while connecting to the database: {e}")
 
 
 class DiscordEvents():
@@ -333,7 +343,7 @@ class DiscordEvents():
                          await user.send(file=discord.File(f))
                     except Exception as e:
                         if not e.code == 50007:
-                           program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')
+                           program_logger.error(f'Fehler beim Senden der Nachricht an {user}: {e}')
         
                 c.execute('SELECT ARCHIVE_CHANNEL_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
                 archive_channel_id = c.fetchone()[0]
@@ -821,15 +831,8 @@ class aclient(discord.AutoShardedClient):
                 return discord.Status.invisible  
     
     async def setup_hook(self):
-        global owner, shutdown, conn, c, logger
+        global owner, shutdown
         shutdown = False
-        try:
-            conn = sqlite3.connect(SQL_FILE)
-            c = conn.cursor()
-            await database_setup.database(c).setup_database()
-        except sqlite3.Error as e:
-            program_logger.critical(f"Error while connecting to the database: {e}")
-            sys.exit(f"Error while connecting to the database: {e}")
         try:
             owner = await self.fetch_user(OWNERID)
             if owner is None:
@@ -841,7 +844,7 @@ class aclient(discord.AutoShardedClient):
         discord_logger.info(f'Angemeldet als {bot.user} (ID: {bot.user.id})')
         discord_logger.info('Synchronisierung...')
         await tree.sync()
-        discord_logger.info('Synchronisierung.')
+        discord_logger.info('Synchronisiert.')
         self.synced = True
         #Background shit
         bot.loop.create_task(Tasks.update_embeds_task())
@@ -851,8 +854,6 @@ class aclient(discord.AutoShardedClient):
         bot.loop.create_task(Tasks.health_server())
         bot.loop.create_task(Tasks.process_latest_joined())
         bot.loop.create_task(Tasks.check_and_process_temp_bans())
-        
-        #await Functions.ChannelSystem()
 
     async def on_ready(self):
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
@@ -884,6 +885,7 @@ tree.on_error = bot.on_app_command_error
 
 
 context_commands.setup(tree)
+#stat_dock.setup(tree=tree, cursor=c, connection=conn, client=bot, logger=program_logger)
 
 TicketSystem = TicketHTML(bot=bot, buffer_folder=BUFFER_FOLDER)
 
@@ -1448,7 +1450,7 @@ class Tasks():
                         else:
                             await channel.send(embeds=embeds)
             except Exception as e:
-                program_logger.error(f"Fehler beim senden des Team Embeds. \n {e}")
+                program_logger.error(f"Fehler beim Senden des Team Embeds.:  {e}")
         
         while not bot.initialized:
             await asyncio.sleep(5)
@@ -2497,25 +2499,6 @@ async def verify_user(interaction: discord.Interaction, member: discord.Member):
 async def self(interaction: discord.Interaction, user: discord.Member):
     await interaction.response.send_message(content=f'The ID of {user.mention} is: `{user.id}`.', ephemeral=True)
 
-
-
-@tree.command(name='debug_close')
-@discord.app_commands.checks.has_permissions(administrator = True)
-async def self(interaction:discord.Interaction):
-    await interaction.response.send_message("Channel wird gelöscht...",ephemeral=True)
-    channel = interaction.channel
-    c.execute('SELECT * FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
-    data_created_tickets = c.fetchone()
-    transcript = await TicketSystem.create_transcript(interaction.channel.id, data_created_tickets[1])
-    user: discord.User = await Functions.get_or_fetch('user', data_created_tickets[1])
-    with open(transcript, 'rb') as f:
-        try:
-             await user.send(file=discord.File(f))
-        except Exception as e:
-            if not e.code == 50007:
-               program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')
-
-    os.remove(transcript)
 
 
 

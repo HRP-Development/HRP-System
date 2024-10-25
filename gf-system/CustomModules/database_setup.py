@@ -5,7 +5,7 @@ class database():
     def __init__(self, c: sqlite3.Cursor):
         self.c = c
 
-    async def setup_database(self):
+    def setup_database(self):
         self.c.executescript('''
         CREATE TABLE IF NOT EXISTS "SERVER" (
 	        "ID"	INTEGER,

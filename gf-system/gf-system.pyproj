@@ -29,6 +29,7 @@
     <Compile Include="CustomModules\epic_games_api.py" />
     <Compile Include="CustomModules\log_handler.py" />
     <Compile Include="CustomModules\database_setup.py" />
+    <Compile Include="CustomModules\stat_dock.py" />
     <Compile Include="CustomModules\steam_api.py" />
     <Compile Include="CustomModules\ticket.py" />
     <Compile Include="main.py" />

@@ -81,7 +81,7 @@ class TicketHTML:
                     
                     reactions_html += f"""
                         <span class='reaction' style='border: 2px solid {reaction_color};'>
-                            {'<img src=\'' + os.path.join(f"ticket-{channel_id}", Path(emoji_file_path).name) + '\' alt=\'' + attachment.filename + '\' style=\'width: 20px; height: 20px;\'>' if isinstance(reaction.emoji, discord.PartialEmoji) else reaction.emoji}
+                            {'<img src=\'' + os.path.join(f"ticket-{channel_id}", Path(emoji_file_path).name) + '\' alt=\'' + reaction.emoji.name + '\' style=\'width: 20px; height: 20px;\'>' if isinstance(reaction.emoji, discord.PartialEmoji) else reaction.emoji}
                             {users_list} ({reaction.count})
                         </span>
                     """
