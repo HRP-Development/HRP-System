@@ -196,7 +196,6 @@ async def _re_init_dock(guild_id, category_id, channel_id, stat_type, timezone, 
         _logger.warning(e)
 
 async def _update_dock(enabled, guild_id, category_id, channel_id, stat_type, timezone, timeformat, countbots, countusers, role_id, prefix):
-    # Updates the dock.
     channel: discord.VoiceChannel = await _get_or_fetch('channel', channel_id)
     guild: discord.Guild = await _get_or_fetch('guild', guild_id)
     if not channel or not guild:
@@ -218,18 +217,22 @@ async def _update_dock(enabled, guild_id, category_id, channel_id, stat_type, ti
                                 )
     else:
         try:
+            new_name = None
             match stat_type:
                 case 'time':
-                    await channel.edit(name=f"{prefix + " " if prefix else ""}{_get_current_time(timezone=timezone, time_format=timeformat)}")
+                    new_name = f"{prefix + ' ' if prefix else ''}{_get_current_time(timezone=timezone, time_format=timeformat)}"
                 case 'role':
                     role: discord.Role = guild.get_role(role_id)
                     members_in_role = await _count_members_by_role(role=role, count_bots=countbots, count_users=countusers)
-                    await channel.edit(name=f"{prefix + " " if prefix else ""}{members_in_role}")
+                    new_name = f"{prefix + ' ' if prefix else ''}{members_in_role}"
                 case 'member':
                     members_in_guild = await _count_members_in_guild(guild=guild, count_bots=countbots, count_users=countusers)
-                    await channel.edit(name=f"{prefix + " " if prefix else ""}{members_in_guild}")
-            _c.execute('UPDATE `STATDOCK` SET `last_updated` = ? WHERE `channel_id` = ?', (int(time()), channel_id,))
-            _conn.commit()
+                    new_name = f"{prefix + ' ' if prefix else ''}{members_in_guild}"
+
+            if new_name and channel.name != new_name:
+                await channel.edit(name=new_name)
+                _c.execute('UPDATE `STATDOCK` SET `last_updated` = ? WHERE `channel_id` = ?', (int(time()), channel_id,))
+                _conn.commit()
         except Exception as e:
             _logger.warning(e)
 
