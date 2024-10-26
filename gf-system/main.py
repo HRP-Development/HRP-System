@@ -248,8 +248,7 @@ class DiscordEvents():
             c.execute('SELECT SUPPORT_ROLE_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
             support_role_id = c.fetchone()[0]
             if support_role_id is not None:
-                guild = bot.get_guild(MAIN_GUILD)
-                support_role: discord.Role = guild.get_role(int(support_role_id))
+                support_role: discord.Role = interaction.guild.get_role(int(support_role_id))
                 if support_role:
                     overwrites[support_role] = discord.PermissionOverwrite(read_messages=True, embed_links=True, attach_files=True)
     
@@ -1225,8 +1224,6 @@ class Functions():
         ein ähnliches oder exaktes Wort gefunden wird.
         """
         if await Functions.isSpamming(message):
-            await message.delete()
-
             embed = discord.Embed()
             embed.title = "Nutzer wurde getimeouted"
             embed.color = discord.Color.red()
@@ -1240,9 +1237,14 @@ class Functions():
                 embed.description = f"Der Nutzer {message.author.mention} wurde für 5 Minuten getimeouted, da er zu schnell schreibt."
             except discord.Forbidden:
                 embed.description = f"Der Nutzer {message.author.mention} konnte nicht getimeouted werden, da ich keine Rechte dazu habe."
-            finally:
-                ca = await Functions.get_or_fetch('channel', (result := c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (message.guild.id,)).fetchone())[0]) if result else None
-                await ca.send(embed=embed)
+
+            row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (message.guild.id,)).fetchone()
+            channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+            await channel.send(embed=embed)
+            try:
+                await message.delete()
+            except discord.NotFound:
+                pass
 
         if BadWords.isBad(message.content):
             await message.delete()
@@ -1300,7 +1302,7 @@ class Functions():
             if support_role_id is None:
                 return False
             else:
-                guild = bot.get_guild(MAIN_GUILD)
+                guild = bot.get_guild(interaction.guild.id)
                 support_role: discord.Role = guild.get_role(int(support_role_id))
                 if support_role in interaction.user.roles:
                     return True
