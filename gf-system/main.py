@@ -4,7 +4,6 @@
 # Todo: • Abmeldungen für TB
 #       • Private Sprachchannel
 #       • Fix das Logs aus einem anderen Server in HRP angezeigt werden
-#       • Channel für Time
 #       • Statdocks
 
 import time
@@ -32,7 +31,7 @@ from CustomModules.bad_words import BadWords
 from CustomModules import context_commands
 from CustomModules.ticket import TicketHTML
 from CustomModules import epic_games_api
-#from CustomModules import stat_dock
+from CustomModules import stat_dock
 
 from aiohttp import web
 from rcon import source
@@ -859,6 +858,7 @@ class aclient(discord.AutoShardedClient):
         await bot.change_presence(activity = self.Presence.get_activity(), status = self.Presence.get_status())
         if self.initialized:
             return
+        bot.loop.create_task(stat_dock.task())
         global start_time
         start_time = datetime.datetime.now(datetime.UTC)
         program_logger.info(f"Fertig geladen in {time.time() - startupTime_start:.2f} Sekunden.")
@@ -885,8 +885,8 @@ tree.on_error = bot.on_app_command_error
 
 
 context_commands.setup(tree)
-#stat_dock.setup(tree=tree, cursor=c, connection=conn, client=bot, logger=program_logger)
 
+stat_dock.setup(tree=tree, cursor=c, connection=conn, client=bot, logger=program_logger)
 TicketSystem = TicketHTML(bot=bot, buffer_folder=BUFFER_FOLDER)
 
 class SignalHandler:
