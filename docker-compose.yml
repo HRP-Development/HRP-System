@@ -11,7 +11,6 @@ services:
       TOKEN:
       OWNER_ID:
       LOG_LEVEL: INFO
-      LOG_CHANNEL:
       STEAM_API_KEY:
       MAINGUILD:
       STEAM_REDIRECT_URL: https://steamconnect.bloodygang.com/

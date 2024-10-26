@@ -3,8 +3,7 @@
 
 # Todo: • Abmeldungen für TB
 #       • Private Sprachchannel
-#       • Fix das Logs aus einem anderen Server in HRP angezeigt werden
-#       • Statdocks
+#       • Statdocks (disabling/enabling, removing, listing)
 
 import time
 startupTime_start = time.time()
@@ -60,11 +59,9 @@ BadWords = BadWords()
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
 LOG_LEVEL = os.getenv('LOG_LEVEL')
-l_channel = os.getenv('LOG_CHANNEL')
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 STEAM_REDIRECT_URL = os.getenv('STEAM_REDIRECT_URL')
 MAIN_GUILD = int(os.getenv('MAINGUILD'))
-LOG_CHANNEL = int(l_channel) if l_channel else None
     
 #Init sentry
 sentry_sdk.init(
@@ -447,32 +444,36 @@ class DiscordEvents():
         embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         if before.name != after.name:
            embed.add_field(name="Name geändert", value=f"Von **{before.name}** zu **{after.name}**", inline=False)
-        ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
-        await ca.send(embed=embed)
+        row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.id,)).fetchone()
+        channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+        if channel is not None:
+            await channel.send(embed=embed)
 
     async def on_guild_update(before, after):
-       embed = discord.Embed(
-           title="⚙️ Server-Einstellungen geändert",
-           description=f"Der Server **{before.name}** hat Änderungen erfahren.",
-           color=discord.Color.purple(),
-           timestamp=datetime.datetime.now(datetime.timezone.utc)
-       )
-       embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
-       if before.name != after.name:
-           embed.add_field(name="Servername geändert", value=f"Von **{before.name}** zu **{after.name}**", inline=False)
-       if before.icon != after.icon:
-           embed.add_field(name="Server-Icon geändert", value="Das Server-Icon wurde geändert", inline=False)
-           embed.set_thumbnail(url=after.icon.url if after.icon else discord.Embed.Empty)
-       if before.afk_timeout != after.afk_timeout:
-           embed.add_field(name="AFK-Timeout geändert", value=f"Von **{before.afk_timeout//60} Minuten** zu **{after.afk_timeout//60} Minuten**", inline=False)
-       if before.system_channel != after.system_channel:
-           embed.add_field(name="System-Channel geändert", value=f"Von **{before.system_channel}** zu **{after.system_channel}**", inline=False)
-       if before.premium_tier != after.premium_tier:
-           embed.add_field(name="Boost-Level geändert", value=f"Von **Stufe {before.premium_tier}** zu **Stufe {after.premium_tier}**", inline=False)
-       if before.premium_subscription_count != after.premium_subscription_count:
-           embed.add_field(name="Anzahl der Server-Boosts geändert", value=f"Von **{before.premium_subscription_count}** zu **{after.premium_subscription_count}**", inline=False)
-       ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
-       await ca.send(embed=embed)
+        embed = discord.Embed(
+            title="⚙️ Server-Einstellungen geändert",
+            description=f"Der Server **{before.name}** hat Änderungen erfahren.",
+            color=discord.Color.purple(),
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
+        )
+        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        if before.name != after.name:
+            embed.add_field(name="Servername geändert", value=f"Von **{before.name}** zu **{after.name}**", inline=False)
+        if before.icon != after.icon:
+            embed.add_field(name="Server-Icon geändert", value="Das Server-Icon wurde geändert", inline=False)
+            embed.set_thumbnail(url=after.icon.url if after.icon else discord.Embed.Empty)
+        if before.afk_timeout != after.afk_timeout:
+            embed.add_field(name="AFK-Timeout geändert", value=f"Von **{before.afk_timeout//60} Minuten** zu **{after.afk_timeout//60} Minuten**", inline=False)
+        if before.system_channel != after.system_channel:
+            embed.add_field(name="System-Channel geändert", value=f"Von **{before.system_channel}** zu **{after.system_channel}**", inline=False)
+        if before.premium_tier != after.premium_tier:
+            embed.add_field(name="Boost-Level geändert", value=f"Von **Stufe {before.premium_tier}** zu **Stufe {after.premium_tier}**", inline=False)
+        if before.premium_subscription_count != after.premium_subscription_count:
+            embed.add_field(name="Anzahl der Server-Boosts geändert", value=f"Von **{before.premium_subscription_count}** zu **{after.premium_subscription_count}**", inline=False)
+        row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.id,)).fetchone()
+        channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+        if channel is not None:
+            await channel.send(embed=embed)
 
     async def on_guild_channel_create(channel):
         category = channel.category.name if channel.category else "Keine Kategorie"
@@ -521,11 +522,10 @@ class DiscordEvents():
 
         embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
-        try:
-            ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
-            await ca.send(embed=embed)
-        except Exception as e:
-            program_logger.error(f"Error while sending channel create log: {e}")
+        row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (channel.guild.id,)).fetchone()
+        channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+        if channel is not None:
+            await channel.send(embed=embed)
 
     async def on_guild_channel_delete(channel):
         embed = discord.Embed(
@@ -535,8 +535,10 @@ class DiscordEvents():
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
-        ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
-        await ca.send(embed=embed)
+        row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (channel.guild.id,)).fetchone()
+        channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+        if channel is not None:
+            await channel.send(embed=embed)
 
     async def on_guild_role_create(role):
         guild = role.guild
@@ -553,11 +555,10 @@ class DiscordEvents():
 
         embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
-        try:
-            ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
-            await ca.send(embed=embed)
-        except Exception as e:
-            program_logger.error(f"Error while sending role create log: {e}")
+        row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (role.guild.id,)).fetchone()
+        channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+        if channel is not None:
+            await channel.send(embed=embed)
 
     async def on_guild_role_delete(role):
         embed = discord.Embed(
@@ -567,47 +568,50 @@ class DiscordEvents():
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
         embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
-        ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
-        await ca.send(embed=embed)
+        row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (role.guild.id,)).fetchone()
+        channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+        if channel is not None:
+            await channel.send(embed=embed)
 
     async def on_guild_role_update(before, after):
-        ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
-
+        if before.position != after.position:
+            return
+    
         embeds = []
-
+    
         embed = discord.Embed(
             title="🔄 Rolle aktualisiert",
             description=f"Rolle **{before.name}** wurde aktualisiert.",
             color=discord.Color.orange(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-
+    
         field_count = 0
         changes = []
-
+    
         if before.name != after.name:
             embed.add_field(name="Name geändert", value=f"Von **{before.name}** zu **{after.name}**", inline=False)
             field_count += 1
-
+    
         if before.color != after.color:
             embed.add_field(name="Farbe geändert", value=f"Von {before.color} zu {after.color}", inline=False)
             field_count += 1
-
+    
         if before.mentionable != after.mentionable:
             embed.add_field(name="Erwähnbar geändert", value=f"Von {'Erwähnbar' if before.mentionable else 'Nicht erwähnbar'} zu {'Erwähnbar' if after.mentionable else 'Nicht erwähnbar'}", inline=False)
             field_count += 1
-
+    
         before_permissions = before.permissions
         after_permissions = after.permissions
-
+    
         for perm in dir(after_permissions):
             if not perm.startswith("_"):
                 before_value = getattr(before_permissions, perm)
                 after_value = getattr(after_permissions, perm)
-
+    
                 if before_value != after_value:
                     changes.append(f"**{perm.replace('_', ' ').capitalize()}**: {'✅' if after_value else '❌'}")
-
+    
         if changes:
             for change in changes:
                 if field_count >= 25:
@@ -619,16 +623,26 @@ class DiscordEvents():
                         timestamp=datetime.datetime.now(datetime.timezone.utc)
                     )
                     field_count = 0
-
+    
                 embed.add_field(name="Berechtigungsänderung", value=change, inline=False)
                 field_count += 1
-
+    
         embeds.append(embed)
-
-        for emb in embeds:
-            emb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+    
+        row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.guild.id,)).fetchone()
+        channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+        for i in range(0, len(embeds), 10):
+            batch = embeds[i:i + 10]
+            embed_message = discord.Embed()
+    
+            for emb in batch:
+                embed_message.add_field(name=emb.title, value=emb.description, inline=False)
+    
+            embed_message.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        
             try:
-                await ca.send(embed=emb)
+                if channel is not None:
+                    await channel.send(embed=embed_message)
             except Exception as e:
                 program_logger.error(f"Error while sending role update log: {e}")
 
@@ -639,7 +653,8 @@ class DiscordEvents():
             color=discord.Color.red(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.add_field(name="Inhalt", value=message.content, inline=False)
+        if message.content:
+            embed.add_field(name="Inhalt", value=message.content, inline=False)
         embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
     
         try:
@@ -648,10 +663,10 @@ class DiscordEvents():
                     embed.description = f"Nachricht von {message.author.mention} wurde durch {entry.user.mention} gelöscht."
                     break
     
-            ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
-            await ca.send(embed=embed)
-        except discord.HTTPException as e:
-            program_logger.error(f"Error while sending message delete log: {e}")
+            row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (message.guild.id,)).fetchone()
+            channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+            if channel is not None:
+                await channel.send(embed=embed)
         except discord.Forbidden:
             program_logger.error(f"Missing permissions to read audit log in guild: {message.guild.id}")
 
@@ -693,8 +708,10 @@ class DiscordEvents():
 
         if changes:
             embed.add_field(name="Änderungen:", value="\n".join(changes), inline=False)
-            ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
-            await ca.send(embed=embed)
+            row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.id,)).fetchone()
+            channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+            if channel is not None:
+                await channel.send(embed=embed)
 
     async def on_message(message):
         async def __wrong_selection():
@@ -1221,7 +1238,7 @@ class Functions():
             except discord.Forbidden:
                 embed.description = f"Der Nutzer {message.author.mention} konnte nicht getimeouted werden, da ich keine Rechte dazu habe."
             finally:
-                ca = await Functions.get_or_fetch('channel', LOG_CHANNEL)
+                ca = await Functions.get_or_fetch('channel', (result := c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.id,)).fetchone())[0]) if result else None
                 await ca.send(embed=embed)
 
         if BadWords.isBad(message.content):
@@ -1787,12 +1804,7 @@ async def self(interaction: discord.Interaction, welcome_channel: discord.TextCh
             timestamp=datetime.datetime.now(datetime.UTC)
             )
         erfolgreich.set_footer(text = FOOTER_TEXT, icon_url = bot.user.avatar.url if bot.user.avatar else '')
-        #channel_name = "🆕 Erstelle hier einen Channel"
-        #overwrites = [
-        #    
-        #]
-        #channel = await guild.create_voice_channel(channel_name)
-        #await interaction.followup.send(embed = erfolgreich)
+        await interaction.edit_original_response(embed=erfolgreich)
     else:
         warning = discord.Embed(
             title = '⚠️ Warnung',

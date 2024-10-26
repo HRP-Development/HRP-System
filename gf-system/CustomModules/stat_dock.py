@@ -387,11 +387,6 @@ async def _statdock_add(
     else:
         await interaction.edit_original_response(content="Stat dock created.")
     
-    
-
-
-
-
 @_statdock_add.autocomplete('timezone')
 async def timezone_autocomplete(interaction: discord.Interaction, current: str) -> list[discord.app_commands.Choice]:
     return[discord.app_commands.Choice(name=tz, value=tz) for tz in pytz.all_timezones if current.lower() in tz.lower()][:25]
