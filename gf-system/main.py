@@ -574,7 +574,7 @@ class DiscordEvents():
             await channel.send(embed=embed)
 
     async def on_guild_role_update(before, after):
-        if before.position != after.position:
+        if before.position != after.position and before.name == after.name:
             return
     
         embeds = []
@@ -656,13 +656,16 @@ class DiscordEvents():
         if message.content:
             embed.add_field(name="Inhalt", value=message.content, inline=False)
         embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
-    
+        
         try:
             async for entry in message.guild.audit_logs(limit=1, action=discord.AuditLogAction.message_delete):
                 if entry.target.id == message.author.id and entry.extra.channel.id == message.channel.id:
                     embed.description = f"Nachricht von {message.author.mention} wurde durch {entry.user.mention} gelöscht."
                     break
-    
+        except Exception as e:
+            program_logger.warning(f"Couldn't read the audit logs -> {e}")
+
+        try:   
             row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (message.guild.id,)).fetchone()
             channel = await Functions.get_or_fetch('channel', row[0]) if row else None
             if channel is not None:
@@ -1238,7 +1241,7 @@ class Functions():
             except discord.Forbidden:
                 embed.description = f"Der Nutzer {message.author.mention} konnte nicht getimeouted werden, da ich keine Rechte dazu habe."
             finally:
-                ca = await Functions.get_or_fetch('channel', (result := c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.id,)).fetchone())[0]) if result else None
+                ca = await Functions.get_or_fetch('channel', (result := c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (message.guild.id,)).fetchone())[0]) if result else None
                 await ca.send(embed=embed)
 
         if BadWords.isBad(message.content):
