@@ -757,6 +757,27 @@ class DiscordEvents():
 
         await Functions.check_message(message)
 
+    async def on_message_edit(before, after):
+        if before.content == after.content:
+            return
+
+        embed = discord.Embed(
+            title="Nachricht wurde bearbeitet.",
+            color=0x2f3136,
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
+        )
+        embed.set_author(name=after.author.nick if after.author.nick is not None else after.author.name, icon_url=after.author.avatar.url)
+        embed.description = (f"✏️ **Nachricht von** {after.author.mention} **wurde in** {after.channel.mention} **bearbeitet**.\n[Jump to Message]({after.jump_url})")
+        embed.add_field(name="Alt", value=f"```{before.content}```" or "*(N/A)*", inline=False)
+        embed.add_field(name="Neu", value=f"```{after.content}```" or "*(N/A)*", inline=False)
+
+        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+
+        row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.guild.id,)).fetchone()
+        channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+        if channel is not None:
+            await channel.send(embed=embed)
+
     async def on_member_join(member: discord.Member):
             member_anzahl = len(member.guild.members) 
             welcome_embed = discord.Embed(
@@ -883,6 +904,7 @@ class aclient(discord.AutoShardedClient):
         self.initialized = True    
 bot = aclient()
 bot.on_message = DiscordEvents.on_message
+bot.on_message_edit = DiscordEvents.on_message_edit
 bot.on_app_command_error = DiscordEvents.on_app_command_error
 bot.on_member_remove = DiscordEvents.on_member_remove
 bot.on_member_join = DiscordEvents.on_member_join
