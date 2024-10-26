@@ -800,7 +800,6 @@ class aclient(discord.AutoShardedClient):
 
         intents = discord.Intents.default()
         intents.members = True
-        intents.guilds = True
         intents.dm_messages = True
         intents.message_content = True
         intents.guild_messages = True
