@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   bot:
     container_name: GF-System
@@ -12,7 +10,6 @@ services:
       OWNER_ID:
       LOG_LEVEL: INFO
       STEAM_API_KEY:
-      MAINGUILD:
       STEAM_REDIRECT_URL: https://steamconnect.bloodygang.com/
     image: ghcr.io/gaming-network/gn-system
     volumes:

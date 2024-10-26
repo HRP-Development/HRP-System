@@ -61,7 +61,6 @@ OWNERID = os.getenv('OWNER_ID')
 LOG_LEVEL = os.getenv('LOG_LEVEL')
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 STEAM_REDIRECT_URL = os.getenv('STEAM_REDIRECT_URL')
-MAIN_GUILD = int(os.getenv('MAINGUILD'))
     
 #Init sentry
 sentry_sdk.init(
@@ -1219,7 +1218,6 @@ class Functions():
         
         for team in teams_data["teams"]:
             role: discord.Role = guild.get_role(team["role_id"])
-            
             if role and role.members:
                 members = '\n'.join([f"{member.mention}" for member in role.members])
                 
@@ -1475,25 +1473,37 @@ class Tasks():
             
     async def check_team():
         async def _function():
-            try:
-                guild = bot.get_guild(MAIN_GUILD)
-                if guild:
-                    embeds = await Functions.update_team_embed(guild)
-                    c.execute("SELECT * FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (guild.id,))
-                    data = c.fetchone()
-                    if data is None:
-                        return
-                    channel = await Functions.get_or_fetch('channel', data[7])
-                    if channel:
-                        last_message = [message async for message in channel.history(limit=1)]
-                        last_message = last_message[0] if last_message else None
+            c.execute('SELECT GUILD_ID, team_list_channel FROM `GUILD_SETTINGS`')
+            data = c.fetchall()
 
-                        if last_message and last_message.embeds and isinstance(last_message.embeds[0], discord.Embed):
-                            await last_message.edit(embeds=embeds)
-                        else:
-                            await channel.send(embeds=embeds)
-            except Exception as e:
-                program_logger.error(f"Fehler beim Senden des Team Embeds.:  {e}")
+            for entry in data:
+                try:
+                    guild = bot.get_guild(entry[0])
+                    if guild:
+                        embeds = await Functions.update_team_embed(guild)
+                        if not embeds:
+                            return
+
+                        c.execute("SELECT * FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (guild.id,))
+                        data = c.fetchone()
+                        if data is None:
+                            continue
+
+                        channel = await Functions.get_or_fetch('channel', entry[1])
+                        if channel:
+                            last_message: discord.Message = None
+                            async for message in channel.history(limit=1):
+                                last_message = message
+                                break
+
+                            if last_message and last_message.embeds and isinstance(last_message.embeds[0], discord.Embed):
+                                if last_message.author != bot.user:
+                                    continue
+                                await last_message.edit(embeds=embeds)
+                            else:
+                                await channel.send(embeds=embeds)
+                except Exception as e:
+                    program_logger.error(f"Fehler beim Senden des Team Embeds.:  {e}")
         
         while not bot.initialized:
             await asyncio.sleep(5)

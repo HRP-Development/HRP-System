@@ -143,19 +143,23 @@ _overwrites = discord.PermissionOverwrite(
 # Main functions
 async def _init_dock(guild: discord.Guild, category: discord.CategoryChannel, channel: discord.VoiceChannel, stat_type: Literal['time', 'role', 'member'], timezone: str, timeformat: str, countbots: bool, countusers: bool, role: discord.Role, prefix: str, frequency: int):
     # Initializes the dock the first time.
-    _c.execute('INSERT INTO `STATDOCK` (guild_id, category_id, channel_id, type, timezone, timeformat, prefix, frequency, last_updated, countbots, countusers, role_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (guild.id,
-                                                                                                                                                                                                                       category.id,
-                                                                                                                                                                                                                       channel.id,
-                                                                                                                                                                                                                       stat_type,
-                                                                                                                                                                                                                       timezone,
-                                                                                                                                                                                                                       timeformat,
-                                                                                                                                                                                                                       prefix,
-                                                                                                                                                                                                                       frequency,
-                                                                                                                                                                                                                       int(time()),
-                                                                                                                                                                                                                       countbots,
-                                                                                                                                                                                                                       countusers,
-                                                                                                                                                                                                                       None if not role else role.id
-                                                                                                                                                                                                                       ))
+    _c.execute(
+        'INSERT INTO `STATDOCK` (guild_id, category_id, channel_id, type, timezone, timeformat, prefix, frequency, last_updated, countbots, countusers, role_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+        (
+            guild.id,
+            category.id,
+            channel.id,
+            stat_type,
+            timezone,
+            timeformat,
+            prefix,
+            frequency,
+            int(time()),
+            countbots,
+            countusers,
+            None if not role else role.id
+        )
+    )
     _conn.commit()
     try:
         match stat_type:
