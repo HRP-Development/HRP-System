@@ -30,6 +30,8 @@ def setup(tree: discord.app_commands.CommandTree, cursor: sqlite3.Cursor, connec
     _setup_database()
 
     tree.add_command(_statdock_add)
+    tree.add_command(_statdock_list)
+    tree.add_command(_statdock_update)
 
 def _setup_database():
     _c.executescript('''
@@ -54,7 +56,7 @@ def _setup_database():
 async def task():
     # Calling this function in setup_hook(), can/will lead to a deadlock!
     async def _function():
-        _c.execute('SELECT * FROM `STATDOCK` WHERE enabled = 1 AND (last_updated + frequency * 60) < ?', (int(time()),))
+        _c.execute('SELECT * FROM `STATDOCK` WHERE `enabled` = 1 AND (last_updated + frequency * 60) < ?', (int(time()),))
         data = _c.fetchall()
         for entry in data:
             guild_id, category_id, channel_id, stat_type, timezone, timeformat, countbots, role_id, prefix, countusers = entry[2], entry[3], entry[4], entry[5], entry[6], entry[7], entry[8], entry[9], entry[10], entry[13]
@@ -141,8 +143,34 @@ _overwrites = discord.PermissionOverwrite(
 
 
 # Main functions
-async def _init_dock(guild: discord.Guild, category: discord.CategoryChannel, channel: discord.VoiceChannel, stat_type: Literal['time', 'role', 'member'], timezone: str, timeformat: str, countbots: bool, countusers: bool, role: discord.Role, prefix: str, frequency: int):
+async def _init_dock(guild: discord.Guild,
+                     category: discord.CategoryChannel,
+                     channel: discord.VoiceChannel,
+                     stat_type: Literal['time', 'role', 'member'],
+                     timezone: str,
+                     timeformat: str,
+                     countbots: bool,
+                     countusers: bool,
+                     role: discord.Role,
+                     prefix: str,
+                     frequency: int
+                     ):
     # Initializes the dock the first time.
+    _conn.commit()
+    try:
+        match stat_type:
+            case 'time':
+                await channel.edit(name=f"{prefix + " " if prefix else ""}{_get_current_time(timezone=timezone, time_format=timeformat)}")
+            case 'role':
+                members_in_role = await _count_members_by_role(role=role, count_bots=countbots, count_users=countusers)
+                await channel.edit(name=f"{prefix + " " if prefix else ""}{members_in_role}")
+            case 'member':
+                members_in_guild = await _count_members_in_guild(guild=guild, count_bots=countbots, count_users=countusers)
+                await channel.edit(name=f"{prefix + " " if prefix else ""}{members_in_guild}")
+    except Exception as e:
+        _logger.warning(e)
+        return str(e)
+
     _c.execute(
         'INSERT INTO `STATDOCK` (guild_id, category_id, channel_id, type, timezone, timeformat, prefix, frequency, last_updated, countbots, countusers, role_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
         (
@@ -160,26 +188,11 @@ async def _init_dock(guild: discord.Guild, category: discord.CategoryChannel, ch
             None if not role else role.id
         )
     )
-    _conn.commit()
-    try:
-        match stat_type:
-            case 'time':
-                await channel.edit(name=f"{prefix + " " if prefix else ""}{_get_current_time(timezone=timezone, time_format=timeformat)}")
-            case 'role':
-                members_in_role = await _count_members_by_role(role=role, count_bots=countbots, count_users=countusers)
-                await channel.edit(name=f"{prefix + " " if prefix else ""}{members_in_role}")
-            case 'member':
-                members_in_guild = await _count_members_in_guild(guild=guild, count_bots=countbots, count_users=countusers)
-                await channel.edit(name=f"{prefix + " " if prefix else ""}{members_in_guild}")
-    except Exception as e:
-        _logger.warning(e)
-        return str(e)
 
 async def _re_init_dock(guild_id, category_id, channel_id, stat_type, timezone, timeformat, countbots, countusers, role_id, prefix):
     # Re-initializes the dock, if the channel got deleted and the stat dock not disabled/deleted.
     guild: discord.Guild = await _get_or_fetch('guild', guild_id)
     category: discord.CategoryChannel = await _get_or_fetch('channel', category_id)
-    # channel: discord.VoiceChannel = await _get_or_fetch('channel', channel_id)
     if (guild is None or category is None or (stat_type == 'role' and (role := await _get_or_fetch('role', role_id)) is None)):
         _c.execute('DELETE FROM `STATDOCK` WHERE `channel_id` = ?', (channel_id,))
         _conn.commit()
@@ -194,12 +207,13 @@ async def _re_init_dock(guild_id, category_id, channel_id, stat_type, timezone, 
             case 'member':
                 members_in_guild = await _count_members_in_guild(guild=guild, count_bots=countbots, count_users=countusers)
                 created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{members_in_guild}", category=category, overwrites={guild.default_role: _overwrites})
-        _c.execute('UPDATE `STATDOCK` SET `last_updated` = ?, `channel_id` = ? WHERE `channel_id` = ?', (int(time()), created_channel.id, channel_id))
+        _c.execute('UPDATE `STATDOCK` SET `last_updated` = ?, `channel_id` = ? WHERE `channel_id` = ?', (int(time()), created_channel.id, channel_id,))
         _conn.commit()
     except Exception as e:
         _logger.warning(e)
 
 async def _update_dock(enabled, guild_id, category_id, channel_id, stat_type, timezone, timeformat, countbots, countusers, role_id, prefix):
+    # Updates a dock.
     channel: discord.VoiceChannel = await _get_or_fetch('channel', channel_id)
     guild: discord.Guild = await _get_or_fetch('guild', guild_id)
     if not channel or not guild:
@@ -309,7 +323,7 @@ def _get_current_time(timezone: str, time_format: str) -> str:
 # Discord AppCommands (/)
 @discord.app_commands.command(name='statdock_add', description='Initializes a new stat dock.')
 @discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
-@discord.app_commands.checks.has_permissions(manage_guild = True)
+@discord.app_commands.checks.has_permissions(manage_guild = True, manage_channels = True)
 @discord.app_commands.describe(category = 'The category you want to create the dock in.',
                                frequency = 'The frequency in which the stat dock updates.',
                                stat_type = 'The kind of dock, you wanna create.',
@@ -394,6 +408,82 @@ async def _statdock_add(
 @_statdock_add.autocomplete('timezone')
 async def timezone_autocomplete(interaction: discord.Interaction, current: str) -> list[discord.app_commands.Choice]:
     return[discord.app_commands.Choice(name=tz, value=tz) for tz in pytz.all_timezones if current.lower() in tz.lower()][:25]
+
+
+
+@discord.app_commands.command(name='statdock_update', description='Updates a dock [enable/disable/delete].')
+@discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
+@discord.app_commands.checks.has_permissions(manage_guild = True, manage_channels = True)
+@discord.app_commands.describe(dock = 'The dock you want to update.')
+async def _statdock_update(interaction: discord.Interaction, dock: discord.VoiceChannel):
+    await interaction.response.defer(ephemeral=True)
+
+    isDock = bool(_c.execute("SELECT EXISTS(SELECT 1 FROM STATDOCK WHERE `channel_id` = ?)", (dock.id,)).fetchone()[0])
+    if not isDock:
+        await interaction.followup.send(content=f"The channel {dock.mention} isn't a dock.")
+        return
+
+    await interaction.followup.send(content="This is a dock.")
+
+
+
+
+@discord.app_commands.command(name='statdock_list', description='Lists every created stat dock.')
+@discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
+@discord.app_commands.checks.has_permissions(manage_guild = True)
+async def _statdock_list(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+
+    _c.execute('SELECT * FROM STATDOCK WHERE `guild_id` = ?', (interaction.guild.id,))
+    data = _c.fetchall()
+    
+    if not data:
+        await interaction.followup.send("No embeds found for this server.")
+        return
+
+    embeds = []
+    for entry in data:
+        embed_color = discord.Color.green() if entry[1] else discord.Color.red()
+        embed_title = f"Embed ID: {entry[0]} - {str(entry[5]).capitalize()}"
+
+        embed = discord.Embed(title=embed_title, color=embed_color)
+
+        if entry[5] == 'member':
+            embed.add_field(name="Channel", value=f"<#{entry[4]}>")
+            embed.add_field(name="Frequency", value=f"{entry[11]} min")
+            embed.add_field(name="Last Updated", value=f"<t:{entry[12]}:F>")
+            embed.add_field(name="Prefix", value=entry[10])
+            embed.add_field(name="Count Members", value=bool(entry[13]))
+            embed.add_field(name="Count Bots", value=bool(entry[8]))
+        elif entry[5] == 'role':
+            embed.add_field(name="Channel", value=f"<#{entry[4]}>")
+            embed.add_field(name="Frequency", value=f"{entry[11]} min")
+            embed.add_field(name="Last Updated", value=f"<t:{entry[12]}:F>")
+            embed.add_field(name="Prefix", value=entry[10])
+            embed.add_field(name="Count Members", value=bool(entry[13]))
+            embed.add_field(name="Count Bots", value=bool(entry[8]))
+            role = interaction.guild.get_role(entry[9])
+            if role:
+                embed.add_field(name="Role", value=role.mention, inline=False)
+        elif entry[5] == 'time':
+            embed.add_field(name="Channel", value=f"<#{entry[4]}>")
+            embed.add_field(name="Frequency", value=f"{entry[11]} min")
+            embed.add_field(name="Last Updated", value=f"<t:{entry[12]}:F>")
+            embed.add_field(name="Prefix", value=entry[10])
+            embed.add_field(name="Timezone", value=entry[6])
+            embed.add_field(name="Time Format", value=entry[7])
+
+        embeds.append(embed)
+
+        if len(embeds) == 10:
+            await interaction.followup.send(embeds=embeds)
+            embeds = []
+
+    if embeds:
+        await interaction.followup.send(embeds=embeds)
+
+
+
 
 
 
