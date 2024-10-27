@@ -78,7 +78,7 @@ async def task():
     while True:
         await _function()
         try:
-            await asyncio.sleep(60 * 5)
+            await asyncio.sleep(10)
         except asyncio.CancelledError:
             break
 
@@ -341,7 +341,7 @@ def _get_current_time(timezone: str, time_format: str) -> str:
         discord.app_commands.Choice(name='Member', value='member'),
     ],
     frequency=[
-        discord.app_commands.Choice(name='5 minutes', value=5),
+        discord.app_commands.Choice(name='6 minutes', value=6),
         discord.app_commands.Choice(name='10 minutes', value=10),
         discord.app_commands.Choice(name='15 minutes', value=15),
         discord.app_commands.Choice(name='20 minutes', value=20),
