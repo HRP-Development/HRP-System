@@ -23,6 +23,51 @@ class TicketHTML:
                 crc32_hash = zlib.crc32(byte_block, crc32_hash)
         return format(crc32_hash & 0xFFFFFFFF, '08x')
 
+    async def replace_mentions(self, message_content, guild):
+        code_block_pattern = re.compile(r"```(?:.|\n)*?```|`[^`]*`")
+    
+        segments = []
+        last_pos = 0
+    
+        for match in code_block_pattern.finditer(message_content):
+            segments.append(("text", message_content[last_pos:match.start()]))
+            segments.append(("code", match.group(0)))
+            last_pos = match.end()
+    
+        segments.append(("text", message_content[last_pos:]))
+    
+        def mention_replacer(match):
+            mention = match.group(0)
+            
+            if mention.startswith('<@&'):
+                role_id = mention[3:-1]
+                role = discord.utils.get(guild.roles, id=int(role_id))
+                if role:
+                    return f"[Rolle erwähnt: {role.name}]"
+            
+            elif mention.startswith('<@'):
+                user_id = mention[2:-1].lstrip('!')
+                user = guild.get_member(int(user_id))
+                if user:
+                    return f"[{"Bot" if user.bot else "User"} erwähnt: {user.display_name}]"
+            
+            elif mention.startswith('<#'):
+                channel_id = mention[2:-1]
+                channel = discord.utils.get(guild.channels, id=int(channel_id))
+                if channel:
+                    return f"[Channel erwähnt: {channel.name}]"
+            
+            return mention
+    
+        mention_pattern = re.compile(r"<@!?[0-9]+>|<@&[0-9]+>|<#\d+>")
+    
+        for i, (seg_type, content) in enumerate(segments):
+            if seg_type == "text":
+                segments[i] = ("text", mention_pattern.sub(mention_replacer, content))
+    
+        final_message = ''.join(content for _, content in segments)
+        return final_message
+
     async def create_transcript(self, channel_id, creator):
         messages = []
         downloaded_files_hashes = {}
@@ -135,7 +180,7 @@ class TicketHTML:
                             <span class="author-name">{message.author.name}</span>
                             <span class="timestamp">{message.created_at.astimezone(berlin_tz).strftime('%d.%m.%Y - %H:%M')}</span>
                         </div>
-                        <p>{message.content}</p>
+                        <p>{await self.replace_mentions(message.content, channel.guild)}</p>
                         {attachment_html}
                         {reactions_html}
                     </div>

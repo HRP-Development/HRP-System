@@ -59,7 +59,17 @@ async def task():
         _c.execute('SELECT * FROM `STATDOCK` WHERE `enabled` = 1 AND (last_updated + frequency * 60) < ?', (int(time()),))
         data = _c.fetchall()
         for entry in data:
-            guild_id, category_id, channel_id, stat_type, timezone, timeformat, countbots, role_id, prefix, countusers = entry[2], entry[3], entry[4], entry[5], entry[6], entry[7], entry[8], entry[9], entry[10], entry[13]
+            guild_id = entry[2]
+            category_id = entry[3]
+            channel_id = entry[4]
+            stat_type = entry[5]
+            timezone = entry[6]
+            timeformat = entry[7]
+            countbots = entry[8]
+            role_id = entry[9]
+            prefix = entry[10]
+            countusers = entry[13]
+
             await _update_dock(enabled=True,
                                guild_id=guild_id,
                                category_id=category_id,
@@ -340,13 +350,21 @@ def _get_current_time(timezone: str, time_format: str) -> str:
         discord.app_commands.Choice(name='Member in role', value='role'),
         discord.app_commands.Choice(name='Member', value='member'),
     ],
-    frequency=[
+    frequency = [
         discord.app_commands.Choice(name='6 minutes', value=6),
         discord.app_commands.Choice(name='10 minutes', value=10),
         discord.app_commands.Choice(name='15 minutes', value=15),
         discord.app_commands.Choice(name='20 minutes', value=20),
         discord.app_commands.Choice(name='25 minutes', value=25),
         discord.app_commands.Choice(name='30 minutes', value=30),
+        discord.app_commands.Choice(name='45 minutes', value=45),
+        discord.app_commands.Choice(name='2 hours', value=120),
+        discord.app_commands.Choice(name='3 hours', value=180),
+        discord.app_commands.Choice(name='4 hours', value=240),
+        discord.app_commands.Choice(name='6 hours', value=360),
+        discord.app_commands.Choice(name='8 hours', value=480),
+        discord.app_commands.Choice(name='12 hours', value=720),
+        discord.app_commands.Choice(name='1 day', value=1440)
     ]
 )
 async def _statdock_add(
@@ -396,7 +414,7 @@ async def _statdock_add(
                               countbots=countbots,
                               countusers=countusers,
                               role=None if not role else role,
-                              prefix=prefix,
+                              prefix=None if not prefix else prefix.strip(),
                               frequency=frequency,
                               )
     if isinstance(result, str):
@@ -411,20 +429,59 @@ async def timezone_autocomplete(interaction: discord.Interaction, current: str) 
 
 
 
-@discord.app_commands.command(name='statdock_update', description='Updates a dock [enable/disable/delete].')
+@discord.app_commands.command(name='statdock_update', description='Updates a dock [enable/disable/delete/prefix].')
 @discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
 @discord.app_commands.checks.has_permissions(manage_guild = True, manage_channels = True)
-@discord.app_commands.describe(dock = 'The dock you want to update.')
-async def _statdock_update(interaction: discord.Interaction, dock: discord.VoiceChannel):
+@discord.app_commands.describe(dock = 'The dock you want to update.',
+                               action = 'The action you wanna perform.',
+                               prefix = 'The new prefix. - Only if `action` is `prefix`. Enter `DELETE to remove.`'
+                               )
+@discord.app_commands.choices(
+    action=[
+        discord.app_commands.Choice(name='enable', value='enable'),
+        discord.app_commands.Choice(name='disable', value='disable'),
+        discord.app_commands.Choice(name='delete', value='delete'),
+        discord.app_commands.Choice(name='prefix', value='prefix')
+    ]
+)
+async def _statdock_update(interaction: discord.Interaction, dock: discord.VoiceChannel, action: str, prefix: str = None):
     await interaction.response.defer(ephemeral=True)
 
-    isDock = bool(_c.execute("SELECT EXISTS(SELECT 1 FROM STATDOCK WHERE `channel_id` = ?)", (dock.id,)).fetchone()[0])
-    if not isDock:
+    is_dock = _c.execute("SELECT EXISTS(SELECT 1 FROM STATDOCK WHERE `channel_id` = ?)", (dock.id,)).fetchone()[0]
+    if not is_dock:
         await interaction.followup.send(content=f"The channel {dock.mention} isn't a dock.")
         return
 
-    await interaction.followup.send(content="This is a dock.")
+    match action:
+        case 'enable':
+            enabled = _c.execute("SELECT `enabled` FROM `STATDOCK` WHERE `channel_id` = ?", (dock.id,)).fetchone()[0]
+            if enabled:
+                await interaction.followup.send("This dock is already enabled.")
+                return
+            _c.execute('UPDATE `STATDOCK` SET `enabled` = 1 WHERE `channel_id` = ?', (dock.id,))
+            await interaction.followup.send("Dock enabled.")
 
+        case 'disable':
+            enabled = _c.execute("SELECT `enabled` FROM `STATDOCK` WHERE `channel_id` = ?", (dock.id,)).fetchone()[0]
+            if not enabled:
+                await interaction.followup.send("This dock is already disabled.")
+                return
+            _c.execute('UPDATE `STATDOCK` SET `enabled` = 0 WHERE `channel_id` = ?', (dock.id,))
+            await interaction.followup.send("Dock disabled.")
+
+        case 'delete':
+            _c.execute('DELETE FROM `STATDOCK` WHERE `channel_id` = ?', (dock.id,))
+            await dock.delete()
+            await interaction.followup.send("Dock deleted.")
+
+        case 'prefix':
+            _c.execute('UPDATE `STATDOCK` SET `prefix` = ? WHERE `channel_id` = ?', (prefix if prefix != 'DELETE' else None, dock.id,))
+            if prefix == 'DELETE':
+                await interaction.followup.send("Prefix removed.")
+            else:
+                await interaction.followup.send(f"Prefix changed to `{prefix}`.")
+
+    _conn.commit()
 
 
 

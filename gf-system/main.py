@@ -1,6 +1,8 @@
 ﻿# -*- coding: utf-8 -*-
 #Import
 
+# Badwords check currently disabled! Enable in check_message()
+
 # Todo: • Abmeldungen für TB
 #       • Private Sprachchannel
 #       • Statdocks (disabling/enabling, removing, listing)
@@ -757,7 +759,7 @@ class DiscordEvents():
         await Functions.check_message(message)
 
     async def on_message_edit(before, after):
-        if before.content == after.content:
+        if before.content == after.content or before.author.bot:
             return
 
         embed = discord.Embed(
@@ -778,25 +780,61 @@ class DiscordEvents():
             await channel.send(embed=embed)
 
     async def on_member_join(member: discord.Member):
-            member_anzahl = len(member.guild.members) 
-            welcome_embed = discord.Embed(
-                title='👋 Willkommen',
-                description=f'Willkommen auf dem Server {member.guild.name}, {member.mention}!\nWir sind nun {member_anzahl} Member.',
-                color=discord.Color.green(),
-                timestamp=datetime.datetime.now(datetime.timezone.utc)
-            )
-            welcome_embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
-            welcome_embed.set_thumbnail(url=member.avatar.url if member.avatar else '')
+        def account_age_in_seconds(member: discord.Member) -> int:
+            now = datetime.datetime.now(datetime.UTC)
+            created = member.created_at
+            age = now - created
+            return age.total_seconds()
+        
+        if not self.initialized:
+            return
+        if member.bot:
+            return
+        #Fetch account_age_min from DB and kick user if account age is less than account_age_min
+        c.execute('SELECT account_age_min FROM servers WHERE guild_id = ?', (member.guild.id,))
+        result = c.fetchone()
+        if result is None or result[0] is None:
+            return
+        account_age_min = result[0]
+        if account_age_in_seconds(member) < account_age_min:
+            try:
+                await member.kick(reason=f'Account age is less than {Functions.format_seconds(account_age_min)}.')
+                await Functions.send_logging_message(member = member, kind = 'account_too_young')
+                return
+            except discord.Forbidden:
+                return
+        else:
+            program_logger.debug(f'Account age is greater than {Functions.format_seconds(account_age_min)}.')
+
+        c.execute('SELECT action FROM servers WHERE guild_id = ?', (member.guild.id,))
+        result = c.fetchone()
+        if result is None or result[0] is None:
+            return
+        c.execute('INSERT INTO processing_joined VALUES (?, ?, ?)', (member.guild.id, member.id, int(time.time(),)))
+        conn.commit()
+
+        member_anzahl = len(member.guild.members) 
+        welcome_embed = discord.Embed(
+            title='👋 Willkommen',
+            description=f'Willkommen auf dem Server {member.guild.name}, {member.mention}!\nWir sind nun {member_anzahl} Member.',
+            color=discord.Color.green(),
+            timestamp=datetime.datetime.now(datetime.timezone.utc)
+        )
+        welcome_embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        welcome_embed.set_thumbnail(url=member.avatar.url if member.avatar else '')
     
-            guild = c.execute("SELECT welcome_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (member.guild.id,)).fetchone()
-            if guild is not None:
-                channel = await Functions.get_or_fetch('channel', guild[0])
-                try:
-                    await channel.send(embed=welcome_embed)
-                except Exception as e:
-                    program_logger.error(f"Error while sending welcome message: {e}")
+        guild = c.execute("SELECT welcome_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (member.guild.id,)).fetchone()
+        if guild is not None:
+            channel = await Functions.get_or_fetch('channel', guild[0])
+            try:
+                await channel.send(embed=welcome_embed)
+            except Exception as e:
+                program_logger.error(f"Error while sending welcome message: {e}")
 
     async def on_member_remove(member: discord.Member):
+        c.execute('DELETE FROM processing_joined WHERE guild_id = ? AND user_id = ?', (member.guild.id, member.id,))
+        conn.commit()
+
         member_anzahl = len(member.guild.members)
         leave_embed = discord.Embed(
             title='👋 Auf Wiedersehen',
@@ -1265,6 +1303,7 @@ class Functions():
             except discord.NotFound:
                 pass
 
+        return
         if BadWords.isBad(message.content):
             await message.delete()
             guild = message.guild
@@ -2548,7 +2587,23 @@ async def self(interaction: discord.Interaction, user: discord.Member):
     await interaction.response.send_message(content=f'The ID of {user.mention} is: `{user.id}`.', ephemeral=True)
 
 
+# @tree.command(name='debug_close')
+# @discord.app_commands.checks.has_permissions(administrator = True)
+# async def self(interaction:discord.Interaction):
+#     await interaction.response.send_message("Channel wird gelöscht...",ephemeral=True)
+#     channel = interaction.channel
+#     c.execute('SELECT * FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (channel.id,))
+#     data_created_tickets = c.fetchone()
+#     transcript = await TicketSystem.create_transcript(interaction.channel.id, data_created_tickets[1])
+#     user: discord.User = await Functions.get_or_fetch('user', data_created_tickets[1])
+#     with open(transcript, 'rb') as f:
+#         try:
+#              await user.send(file=discord.File(f))
+#         except Exception as e:
+#             if not e.code == 50007:
+#                program_logger.error(f'Fehler beim senden der Nachricht an {user}\n Fehler: {e}')
 
+#     os.remove(transcript)
 
 
 if __name__ == '__main__':
