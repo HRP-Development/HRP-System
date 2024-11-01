@@ -786,9 +786,7 @@ class DiscordEvents():
             age = now - created
             return age.total_seconds()
         
-        if not self.initialized:
-            return
-        if member.bot:
+        if not bot.initialized or member.bot:
             return
         #Fetch account_age_min from DB and kick user if account age is less than account_age_min
         c.execute('SELECT account_age_min FROM servers WHERE guild_id = ?', (member.guild.id,))
@@ -963,7 +961,7 @@ tree.on_error = bot.on_app_command_error
 
 context_commands.setup(tree)
 
-stat_dock.setup(tree=tree, cursor=c, connection=conn, client=bot, logger=program_logger)
+stat_dock.setup(tree=tree, connection=conn, client=bot, logger=program_logger)
 TicketSystem = TicketHTML(bot=bot, buffer_folder=BUFFER_FOLDER)
 
 class SignalHandler:

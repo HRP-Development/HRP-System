@@ -25,6 +25,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="CustomModules\bad_words.py" />
+    <Compile Include="CustomModules\bitmap_handler.py" />
     <Compile Include="CustomModules\context_commands.py" />
     <Compile Include="CustomModules\epic_games_api.py" />
     <Compile Include="CustomModules\log_handler.py" />
