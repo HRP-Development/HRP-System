@@ -836,7 +836,6 @@ class DiscordEvents():
 
     async def on_member_remove(member: discord.Member):
         c.execute('DELETE FROM processing_joined WHERE guild_id = ? AND user_id = ?', (member.guild.id, member.id,))
-        conn.commit()
 
         member_anzahl = len(member.guild.members)
         leave_embed = discord.Embed(
@@ -855,6 +854,34 @@ class DiscordEvents():
                 await channel.send(embed=leave_embed)
             except Exception as e:
                    program_logger.error(f"Error while sending leave message: {e}")
+
+        #Close open tickets
+        c.execute('SELECT ARCHIVE_CHANNEL_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (member.guild.id,))
+        archive_channel_id = c.fetchone()[0]
+        if archive_channel_id is None:
+            return
+        archive_channel: discord.TextChannel = await Functions.get_or_fetch('channel', archive_channel_id)
+
+        c.execute('SELECT `CHANNEL_ID`, `CATEGORY` FROM `CREATED_TICKETS` WHERE `USER_ID` = ?', (member.id,))
+        open_tickets = c.fetchall()
+        for entry in open_tickets:
+            transcript = await TicketSystem.create_transcript(channel_id=entry[0], creator_id=member.id)
+            try:
+                await archive_channel.send(content=f'Kategorie: {entry[1]}\nUser: <@{member.id}>', file=discord.File(transcript))
+            except Exception as e:
+                program_logger.warning(f"Transcript couldn't be send to archive. -> {e}")
+        
+            os.remove(transcript)
+            c.execute('DELETE FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (entry[0],))
+            try:
+                ticket_channel = await Functions.get_or_fetch('channel', entry[0])
+                await ticket_channel.delete()
+            except (discord.NotFound, discord.Forbidden):
+                continue
+            except Exception as e:
+                program_logger.warning(f"Couldn't delete ticket channel -> {e}")
+        conn.commit()
+
 
 class aclient(discord.AutoShardedClient):
     def __init__(self):

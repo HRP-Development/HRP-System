@@ -105,12 +105,14 @@ class TicketHTML:
     
         return message_content
 
-    async def create_transcript(self, channel_id, creator):
+    async def create_transcript(self, channel_id: int, creator_id: int):
         messages = []
         downloaded_files_hashes = {}
         downloaded_emoji_hashes = {}
-        op: discord.Member = await self.bot.fetch_user(creator)
+        op: discord.Member = await self.bot.fetch_user(creator_id)
         channel: discord.TextChannel = self.bot.get_channel(channel_id)
+        if not channel:
+            channel = self.bot.fetch_channel(channel_id)
         ticket_status = "Geschlossen"
         closing_date = datetime.now().strftime("%d.%m.%Y | %H:%M:%S")
         berlin_tz = pytz.timezone('Europe/Berlin')
