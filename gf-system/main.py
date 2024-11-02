@@ -5,6 +5,7 @@
 
 # Todo: • Abmeldungen für TB
 #       • Private Sprachchannel
+#       • Statdocks (delete all on server leave)
 
 import time
 startupTime_start = time.time()
@@ -646,6 +647,12 @@ class DiscordEvents():
                 program_logger.error(f"Error while sending role update log: {e}")
 
     async def on_message_delete(message):
+        try:
+            logging_channel_id = c.execute('SELECT `logging_channel` FROM `GUILD_SETTINGS` WHERE `GUILD_ID` = ?', (message.guild.id,)).fetchone()[0]
+            if logging_channel_id == message.channel.id:
+                return
+        except TypeError:
+            return
         embed = discord.Embed(
             title="🗑️ Nachricht gelöscht",
             description=f"Nachricht von {message.author.mention} wurde gelöscht.",
@@ -661,16 +668,15 @@ class DiscordEvents():
                 if entry.target.id == message.author.id and entry.extra.channel.id == message.channel.id:
                     embed.description = f"Nachricht von {message.author.mention} wurde durch {entry.user.mention} gelöscht."
                     break
-        except Exception as e:
-            program_logger.warning(f"Couldn't read the audit logs -> {e}")
+        except discord.Forbidden:
+            program_logger.warning(f"Couldn't read the audit logs: -> {e}")
 
         try:   
-            row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (message.guild.id,)).fetchone()
-            channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+            channel = await Functions.get_or_fetch('channel', logging_channel_id)
             if channel is not None:
                 await channel.send(embed=embed)
-        except discord.Forbidden:
-            program_logger.error(f"Missing permissions to read audit log in guild: {message.guild.id}")
+        except discord.DiscordException as e:
+            program_logger.error(f"Error while sending logging message: -> {e}")
 
     async def on_member_update(before, after):
         embed = discord.Embed(

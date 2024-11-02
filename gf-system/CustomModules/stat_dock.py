@@ -174,10 +174,6 @@ def _setup_database():
 
 
 
-
-
-
-
 # Main functions
 async def _init_dock(guild: discord.Guild,
                      category: discord.CategoryChannel,
