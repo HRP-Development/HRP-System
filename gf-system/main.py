@@ -5,7 +5,6 @@
 
 # Todo: • Abmeldungen für TB
 #       • Private Sprachchannel
-#       • Statdocks (disabling/enabling, removing, listing)
 
 import time
 startupTime_start = time.time()
@@ -55,7 +54,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.6.1"
+BOT_VERSION = "1.7.0"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -647,6 +646,12 @@ class DiscordEvents():
                 program_logger.error(f"Error while sending role update log: {e}")
 
     async def on_message_delete(message):
+        try:
+            logging_channel_id = c.execute('SELECT `logging_channel` FROM `GUILD_SETTINGS` WHERE `GUILD_ID` = ?', (message.guild.id,)).fetchone()[0]
+            if logging_channel_id == message.channel.id:
+                return
+        except TypeError:
+            return
         embed = discord.Embed(
             title="🗑️ Nachricht gelöscht",
             description=f"Nachricht von {message.author.mention} wurde gelöscht.",
@@ -662,16 +667,15 @@ class DiscordEvents():
                 if entry.target.id == message.author.id and entry.extra.channel.id == message.channel.id:
                     embed.description = f"Nachricht von {message.author.mention} wurde durch {entry.user.mention} gelöscht."
                     break
-        except Exception as e:
-            program_logger.warning(f"Couldn't read the audit logs -> {e}")
+        except discord.Forbidden:
+            program_logger.warning(f"Couldn't read the audit logs: -> {e}")
 
         try:   
-            row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (message.guild.id,)).fetchone()
-            channel = await Functions.get_or_fetch('channel', row[0]) if row else None
+            channel = await Functions.get_or_fetch('channel', logging_channel_id)
             if channel is not None:
                 await channel.send(embed=embed)
-        except discord.Forbidden:
-            program_logger.error(f"Missing permissions to read audit log in guild: {message.guild.id}")
+        except discord.DiscordException as e:
+            program_logger.error(f"Error while sending logging message: -> {e}")
 
     async def on_member_update(before, after):
         embed = discord.Embed(
@@ -786,9 +790,7 @@ class DiscordEvents():
             age = now - created
             return age.total_seconds()
         
-        if not self.initialized:
-            return
-        if member.bot:
+        if not bot.initialized or member.bot:
             return
         #Fetch account_age_min from DB and kick user if account age is less than account_age_min
         c.execute('SELECT account_age_min FROM servers WHERE guild_id = ?', (member.guild.id,))
@@ -833,7 +835,6 @@ class DiscordEvents():
 
     async def on_member_remove(member: discord.Member):
         c.execute('DELETE FROM processing_joined WHERE guild_id = ? AND user_id = ?', (member.guild.id, member.id,))
-        conn.commit()
 
         member_anzahl = len(member.guild.members)
         leave_embed = discord.Embed(
@@ -852,6 +853,34 @@ class DiscordEvents():
                 await channel.send(embed=leave_embed)
             except Exception as e:
                    program_logger.error(f"Error while sending leave message: {e}")
+
+        #Close open tickets
+        c.execute('SELECT ARCHIVE_CHANNEL_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (member.guild.id,))
+        archive_channel_id = c.fetchone()[0]
+        if archive_channel_id is None:
+            return
+        archive_channel: discord.TextChannel = await Functions.get_or_fetch('channel', archive_channel_id)
+
+        c.execute('SELECT `CHANNEL_ID`, `CATEGORY` FROM `CREATED_TICKETS` WHERE `USER_ID` = ?', (member.id,))
+        open_tickets = c.fetchall()
+        for entry in open_tickets:
+            transcript = await TicketSystem.create_transcript(channel_id=entry[0], creator_id=member.id)
+            try:
+                await archive_channel.send(content=f'Kategorie: {entry[1]}\nUser: <@{member.id}>', file=discord.File(transcript))
+            except Exception as e:
+                program_logger.warning(f"Transcript couldn't be send to archive. -> {e}")
+        
+            os.remove(transcript)
+            c.execute('DELETE FROM CREATED_TICKETS WHERE CHANNEL_ID = ?', (entry[0],))
+            try:
+                ticket_channel = await Functions.get_or_fetch('channel', entry[0])
+                await ticket_channel.delete()
+            except (discord.NotFound, discord.Forbidden):
+                continue
+            except Exception as e:
+                program_logger.warning(f"Couldn't delete ticket channel -> {e}")
+        conn.commit()
+
 
 class aclient(discord.AutoShardedClient):
     def __init__(self):
@@ -963,7 +992,7 @@ tree.on_error = bot.on_app_command_error
 
 context_commands.setup(tree)
 
-stat_dock.setup(tree=tree, cursor=c, connection=conn, client=bot, logger=program_logger)
+stat_dock.setup(tree=tree, connection=conn, client=bot, logger=program_logger)
 TicketSystem = TicketHTML(bot=bot, buffer_folder=BUFFER_FOLDER)
 
 class SignalHandler:

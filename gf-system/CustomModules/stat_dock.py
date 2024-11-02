@@ -1,96 +1,17 @@
+import sys
+if sys.version_info < (3, 10):
+    raise ImportError("This module requires Python 3.10 or higher to work correctly.")
 import asyncio
 import discord
 import pytz
 import sqlite3
 import logging
+from CustomModules.bitmap_handler import BitmapHandler
 from datetime import datetime
 from time import time
 from typing import Optional, Any, Literal
 
 
-# Setup
-def setup(tree: discord.app_commands.CommandTree, cursor: sqlite3.Cursor, connection: sqlite3.Connection, client:discord.Client, logger: logging.Logger = None):
-    global _c, _conn, _bot, _logger
-    _c, _conn, _bot = cursor, connection, client
-
-    if tree is None:
-        raise ValueError("Command tree cannot be None.")
-    if _c is None:
-        raise ValueError("Database cursor cannot be None.")
-    if _conn is None:
-        raise ValueError("Database connection cannot be None.")
-    if _bot is None:
-        raise ValueError("Discord client cannot be None.")
-
-    if logger is None:
-        logger = logging.getLogger("null")
-        logger.addHandler(logging.NullHandler)
-    _logger = logger
-
-    _setup_database()
-
-    tree.add_command(_statdock_add)
-    tree.add_command(_statdock_list)
-    tree.add_command(_statdock_update)
-
-def _setup_database():
-    _c.executescript('''
-    CREATE TABLE IF NOT EXISTS "STATDOCK" (
-        `id` integer not null primary key autoincrement,
-        `enabled` BOOLEAN not null default 1,
-        `guild_id` INT not null,
-        `category_id` INT not null,
-        `channel_id` INT not null,
-        `type` varchar(255) not null,
-        `timezone` varchar(255) null,
-        `timeformat` varchar(255) null,
-        `countbots` BOOLEAN null,
-        `role_id` INT null,
-        `prefix` varchar(255) null,
-        `frequency` INT not null,
-        `last_updated` INT not null,
-        `countusers` BOOLEAN null
-    )
-    ''')
-
-async def task():
-    # Calling this function in setup_hook(), can/will lead to a deadlock!
-    async def _function():
-        _c.execute('SELECT * FROM `STATDOCK` WHERE `enabled` = 1 AND (last_updated + frequency * 60) < ?', (int(time()),))
-        data = _c.fetchall()
-        for entry in data:
-            guild_id = entry[2]
-            category_id = entry[3]
-            channel_id = entry[4]
-            stat_type = entry[5]
-            timezone = entry[6]
-            timeformat = entry[7]
-            countbots = entry[8]
-            role_id = entry[9]
-            prefix = entry[10]
-            countusers = entry[13]
-
-            await _update_dock(enabled=True,
-                               guild_id=guild_id,
-                               category_id=category_id,
-                               channel_id=channel_id,
-                               stat_type=stat_type,
-                               timezone=timezone,
-                               timeformat=timeformat,
-                               countbots=countbots,
-                               countusers=countusers,
-                               role_id=role_id,
-                               prefix=prefix
-                               )
-
-    await _bot.wait_until_ready()
-
-    while True:
-        await _function()
-        try:
-            await asyncio.sleep(10)
-        except asyncio.CancelledError:
-            break
 
 _overwrites = discord.PermissionOverwrite(
         create_instant_invite=False,
@@ -150,6 +71,107 @@ _overwrites = discord.PermissionOverwrite(
         use_external_apps=False,
 )
 
+_bitmap = [
+    'time',                     # 0
+    'role',                     # 1
+    'member',                   # 2
+    'countusers',               # 3
+    'countbots',                # 4
+    'counttext',                # 5
+    'countvoice',               # 6
+    'countcategory',            # 7
+    'channel',                  # 8
+    'countstage',               # 9
+    'countforum'                # 10
+    #MAXENTRY 63
+]
+
+
+
+# Setup
+def setup(client:discord.Client, tree: discord.app_commands.CommandTree, connection: sqlite3.Connection = None, logger: logging.Logger = None):
+    global _c, _conn, _bot, _logger, _bitmap
+    _conn, _bot, _bitmap = connection, client, BitmapHandler(_bitmap)
+
+    if tree is None:
+        raise ValueError("Command tree cannot be None.")
+    if _bot is None:
+        raise ValueError("Discord client cannot be None.")
+
+    if _conn is None:
+        _conn = sqlite3.connect("StatDocks.db")
+    _c = _conn.cursor()
+    if logger is None:
+        logger = logging.getLogger("null")
+        logger.addHandler(logging.NullHandler)
+    _logger = logger
+
+    _setup_database()
+
+    tree.add_command(_statdock_add)
+    tree.add_command(_statdock_list)
+    tree.add_command(_statdock_update)
+    tree.add_command(_statdock_enable_hidden)
+
+async def task():
+    # Calling this function in setup_hook(), can/will lead to a deadlock!
+    async def _function():
+        _c.execute('SELECT * FROM `STATDOCK` WHERE `enabled` = 1 AND (last_updated + frequency * 60) < ?', (int(time()),))
+        data = _c.fetchall()
+        for entry in data:
+            guild_id = entry[2]
+            category_id = entry[3]
+            channel_id = entry[4]
+            stat_type = entry[5]
+            timezone = entry[6]
+            timeformat = entry[7]
+            counter = entry[12]
+            role_id = entry[8]
+            prefix = entry[9]
+
+            await _update_dock(enabled=True,
+                               guild_id=guild_id,
+                               category_id=category_id,
+                               channel_id=channel_id,
+                               stat_type=stat_type,
+                               timezone=timezone,
+                               timeformat=timeformat,
+                               counter=counter,
+                               role_id=role_id,
+                               prefix=prefix
+                               )
+
+    await _bot.wait_until_ready()
+
+    while True:
+        await _function()
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            break
+
+def _setup_database():
+    _c.executescript('''
+    CREATE TABLE IF NOT EXISTS "STATDOCK" (
+        `id` integer not null primary key autoincrement,
+        `enabled` BOOLEAN not null default 1,
+        `guild_id` INT not null,
+        `category_id` INT not null,
+        `channel_id` INT not null,
+        `type` INT not null,
+        `timezone` varchar(255) null,
+        `timeformat` varchar(255) null,
+        `role_id` INT null,
+        `prefix` varchar(255) null,
+        `frequency` INT not null,
+        `last_updated` INT not null,
+        `counter` INT not null default 0
+    )
+    ''')
+
+
+
+
 
 
 # Main functions
@@ -159,51 +181,72 @@ async def _init_dock(guild: discord.Guild,
                      stat_type: Literal['time', 'role', 'member'],
                      timezone: str,
                      timeformat: str,
-                     countbots: bool,
-                     countusers: bool,
                      role: discord.Role,
                      prefix: str,
-                     frequency: int
+                     frequency: int,
+                     countbots: bool = False,
+                     countusers: bool = False,
+                     counttext: bool = False,
+                     countvoice: bool = False,
+                     countcategory: bool = False,
+                     countstage: bool = False,
+                     countforum: bool = False
                      ):
     # Initializes the dock the first time.
-    _conn.commit()
     try:
         match stat_type:
             case 'time':
                 await channel.edit(name=f"{prefix + " " if prefix else ""}{_get_current_time(timezone=timezone, time_format=timeformat)}")
             case 'role':
-                members_in_role = await _count_members_by_role(role=role, count_bots=countbots, count_users=countusers)
+                members_in_role = await _count_members_by_role(role=role, countbots=countbots, countusers=countusers)
                 await channel.edit(name=f"{prefix + " " if prefix else ""}{members_in_role}")
             case 'member':
-                members_in_guild = await _count_members_in_guild(guild=guild, count_bots=countbots, count_users=countusers)
+                members_in_guild = await _count_members_in_guild(guild=guild, countbots=countbots, countusers=countusers)
                 await channel.edit(name=f"{prefix + " " if prefix else ""}{members_in_guild}")
+            case 'channel':
+                channels_in_guild = await _count_channels_in_guild(guild=guild,
+                                                                   counttext=counttext, countvoice=countvoice, countcategory=countcategory,
+                                                                   countstage=countstage, countforum=countforum
+                                                                   )
+                await channel.edit(name=f"{prefix + " " if prefix else ""}{channels_in_guild}")
+
+
+            case _:
+                raise ValueError(f"Invalid stat_type: {stat_type}.")
     except Exception as e:
         _logger.warning(e)
         return str(e)
 
     _c.execute(
-        'INSERT INTO `STATDOCK` (guild_id, category_id, channel_id, type, timezone, timeformat, prefix, frequency, last_updated, countbots, countusers, role_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+        'INSERT INTO `STATDOCK` (guild_id, category_id, channel_id, type, timezone, timeformat, prefix, frequency, last_updated, counter, role_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
         (
             guild.id,
             category.id,
             channel.id,
-            stat_type,
+            _bitmap.get_bitkey(stat_type),
             timezone,
             timeformat,
             prefix,
             frequency,
             int(time()),
-            countbots,
-            countusers,
+            _bitmap.get_bitkey('countbots' if countbots else '',
+                               'countusers' if countusers else '',
+                               'counttext' if counttext else '',
+                               'countvoice' if countvoice else '',
+                               'countcategory' if countcategory else '',
+                               'countstage' if countstage else '',
+                               'countforum' if countforum else ''
+                               ),
             None if not role else role.id
         )
     )
+    _conn.commit()
 
-async def _re_init_dock(guild_id, category_id, channel_id, stat_type, timezone, timeformat, countbots, countusers, role_id, prefix):
+async def _re_init_dock(guild_id: int, category_id: int, channel_id: int, stat_type: int, timezone: str, timeformat: str, counter: int, role_id: int, prefix: str, ignore_none_category: bool = False):
     # Re-initializes the dock, if the channel got deleted and the stat dock not disabled/deleted.
     guild: discord.Guild = await _get_or_fetch('guild', guild_id)
     category: discord.CategoryChannel = await _get_or_fetch('channel', category_id)
-    if (guild is None or category is None or (stat_type == 'role' and (role := await _get_or_fetch('role', role_id)) is None)):
+    if (guild is None or (category is None and not ignore_none_category) or (stat_type == 'role' and (role := await _get_or_fetch('role', role_id)) is None)):
         _c.execute('DELETE FROM `STATDOCK` WHERE `channel_id` = ?', (channel_id,))
         _conn.commit()
         return
@@ -212,20 +255,34 @@ async def _re_init_dock(guild_id, category_id, channel_id, stat_type, timezone, 
             case 'time':
                 created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{_get_current_time(timezone=timezone, time_format=timeformat)}", category=category, overwrites={guild.default_role: _overwrites})
             case 'role':
-                members_in_role = await _count_members_by_role(role=role, count_bots=countbots, count_users=countusers)
+                members_in_role = await _count_members_by_role(role=role, countbots=_bitmap.check_key_in_bitkey('countbots', counter), countusers=_bitmap.check_key_in_bitkey('countusers', counter))
                 created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{members_in_role}", category=category, overwrites={guild.default_role: _overwrites})
             case 'member':
-                members_in_guild = await _count_members_in_guild(guild=guild, count_bots=countbots, count_users=countusers)
+                members_in_guild = await _count_members_in_guild(guild=guild, countbots=_bitmap.check_key_in_bitkey('countbots', counter), countusers=_bitmap.check_key_in_bitkey('countusers', counter))
                 created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{members_in_guild}", category=category, overwrites={guild.default_role: _overwrites})
-        _c.execute('UPDATE `STATDOCK` SET `last_updated` = ?, `channel_id` = ? WHERE `channel_id` = ?', (int(time()), created_channel.id, channel_id,))
+            case 'channel':
+                channels_in_guild = await _count_channels_in_guild(guild=guild,
+                                                                   counttext=_bitmap.check_key_in_bitkey('counttext', counter),
+                                                                   countvoice=_bitmap.check_key_in_bitkey('countvoice', counter),
+                                                                   countcategory=_bitmap.check_key_in_bitkey('countcategory', counter),
+                                                                   countstage=_bitmap.check_key_in_bitkey('countstage', counter),
+                                                                   countforum=_bitmap.check_key_in_bitkey('countforum', counter)
+                                                                   )
+        if not category:
+            created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{channels_in_guild}")
+        else:
+            created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{channels_in_guild}", category=category)
+
+        _c.execute('UPDATE `STATDOCK` SET `last_updated` = ?, `channel_id` = ?, enabled = 1 WHERE `channel_id` = ?', (int(time()), created_channel.id, channel_id,))
         _conn.commit()
     except Exception as e:
         _logger.warning(e)
 
-async def _update_dock(enabled, guild_id, category_id, channel_id, stat_type, timezone, timeformat, countbots, countusers, role_id, prefix):
+async def _update_dock(enabled, guild_id, category_id, channel_id, stat_type, timezone, timeformat, counter, role_id, prefix):
     # Updates a dock.
     channel: discord.VoiceChannel = await _get_or_fetch('channel', channel_id)
     guild: discord.Guild = await _get_or_fetch('guild', guild_id)
+    stat_type = _bitmap.get_active_keys(stat_type, single=True)
     if not channel or not guild:
         if not enabled:
             _c.execute('DELETE FROM `STATDOCK` WHERE `channel_id` = ?', (channel_id,))
@@ -238,8 +295,7 @@ async def _update_dock(enabled, guild_id, category_id, channel_id, stat_type, ti
                                 stat_type=stat_type,
                                 timezone=timezone,
                                 timeformat=timeformat,
-                                countbots=countbots,
-                                countusers=countusers,
+                                counter=counter,
                                 role_id=role_id,
                                 prefix=prefix
                                 )
@@ -251,12 +307,20 @@ async def _update_dock(enabled, guild_id, category_id, channel_id, stat_type, ti
                     new_name = f"{prefix + ' ' if prefix else ''}{_get_current_time(timezone=timezone, time_format=timeformat)}"
                 case 'role':
                     role: discord.Role = guild.get_role(role_id)
-                    members_in_role = await _count_members_by_role(role=role, count_bots=countbots, count_users=countusers)
+                    members_in_role = await _count_members_by_role(role=role, countbots=_bitmap.check_key_in_bitkey('countbots', counter), countusers=_bitmap.check_key_in_bitkey('countusers', counter))
                     new_name = f"{prefix + ' ' if prefix else ''}{members_in_role}"
                 case 'member':
-                    members_in_guild = await _count_members_in_guild(guild=guild, count_bots=countbots, count_users=countusers)
+                    members_in_guild = await _count_members_in_guild(guild=guild, countbots=_bitmap.check_key_in_bitkey('countbots', counter), countusers=_bitmap.check_key_in_bitkey('countusers', counter))
                     new_name = f"{prefix + ' ' if prefix else ''}{members_in_guild}"
-
+                case 'channel':
+                    channels_in_guild = await _count_channels_in_guild(guild=guild,
+                                                                       counttext=_bitmap.check_key_in_bitkey('counttext', counter),
+                                                                       countvoice=_bitmap.check_key_in_bitkey('countvoice', counter),
+                                                                       countcategory=_bitmap.check_key_in_bitkey('countcategory', counter),
+                                                                       countstage=_bitmap.check_key_in_bitkey('countstage', counter),
+                                                                       countforum=_bitmap.check_key_in_bitkey('countforum', counter)
+                                                                       )
+                    new_name = f"{prefix + ' ' if prefix else ''}{channels_in_guild}"
             if new_name and channel.name != new_name:
                 await channel.edit(name=new_name)
                 _c.execute('UPDATE `STATDOCK` SET `last_updated` = ? WHERE `channel_id` = ?', (int(time()), channel_id,))
@@ -267,19 +331,37 @@ async def _update_dock(enabled, guild_id, category_id, channel_id, stat_type, ti
 
 
 # Helper functions
-async def _count_members_in_guild(guild: discord.Guild, count_bots: bool, count_users: bool):
+async def _count_members_in_guild(guild: discord.Guild, countbots: bool, countusers: bool):
     members = [
         member for member in guild.members 
-        if (count_users and not member.bot) or (count_bots and member.bot)
+        if (countusers and not member.bot) or (countbots and member.bot)
     ]
     return len(members)
 
-async def _count_members_by_role(role: discord.Role, count_bots: bool, count_users: bool):
+async def _count_members_by_role(role: discord.Role, countbots: bool, countusers: bool):
     members_in_role = [
         member for member in role.members 
-        if (count_users and not member.bot) or (count_bots and member.bot)
+        if (countusers and not member.bot) or (countbots and member.bot)
     ]
     return len(members_in_role)
+
+async def _count_channels_in_guild(guild: discord.Guild, counttext: bool, countvoice: bool, countcategory: bool, countstage: bool, countforum: bool) -> int:
+    count = 0
+
+    for channel in guild.channels:
+        match channel:
+            case discord.TextChannel() if counttext:
+                count += 1
+            case discord.VoiceChannel() if countvoice:
+                count += 1
+            case discord.CategoryChannel() if countcategory:
+                count += 1
+            case discord.StageChannel() if countstage:
+                count +=1
+            case discord.ForumChannel() if countforum:
+                count +=1
+
+    return count
 
 async def _get_or_fetch(item: str, item_id: int) -> Optional[Any]:
     """
@@ -342,13 +424,19 @@ def _get_current_time(timezone: str, time_format: str) -> str:
                                countbots = 'Should bots be included? - Only used for type `Member in role` and `Member`.',
                                countusers = 'Should users be included? - Only used for type `Member in role` and `Member`.',
                                role = 'Role, whose member count should be tracked. - Only for type `Member in role`.',
-                               prefix = 'Text, that is put before the counter.'
+                               prefix = 'Text, that is put before the counter.',
+                               counttext = 'Include text channels. - Only used for type `Channel counter`',
+                               countvoice = 'Include voice channels. - Only used for type `Channel counter`',
+                               countcategory = 'Include category channels. - Only used for type `Channel counter`',
+                               countstage = 'Include stage channels. - Only used for type `Channel counter`',
+                               countforum = 'Include forum channels. - Only used for type `Channel counter`',
                                )
 @discord.app_commands.choices(
     stat_type=[
         discord.app_commands.Choice(name='Time', value='time'),
         discord.app_commands.Choice(name='Member in role', value='role'),
         discord.app_commands.Choice(name='Member', value='member'),
+        discord.app_commands.Choice(name='Channel counter', value='channel'),
     ],
     frequency = [
         discord.app_commands.Choice(name='6 minutes', value=6),
@@ -377,6 +465,11 @@ async def _statdock_add(
         timeformat: str = '%H:%M',
         countbots: bool = False,
         countusers: bool = False,
+        counttext: bool = False,
+        countvoice: bool = False,
+        countcategory: bool = False,
+        countstage: bool = False,
+        countforum: bool = False,
         role: discord.Role = None
     ):
 
@@ -392,6 +485,12 @@ async def _statdock_add(
             if role is None:
                 await interaction.response.send_message(content="You need to enter a role, to use this stat dock.", ephemeral=True)
                 return
+    elif stat_type == 'time' and not (_isValidTimezone(timezone) or _isValidTimeformat(timeformat)):
+        await interaction.response.send_message("You either entered a wrong timezone, or format.")
+        return
+    elif stat_type == 'channel' and not (counttext or countvoice or countcategory or countstage or countforum):
+        await interaction.response.send_message(content="You need to enable at least one of those options to use this dock\n`counttext`, `countvoice`, `countcategory`, `countstage`, `countforum`.", ephemeral=True)
+        return
 
     await interaction.response.send_message("The stat dock is being created...", ephemeral=True)
     try:
@@ -400,11 +499,7 @@ async def _statdock_add(
         _logger.error(e)
         await interaction.edit_original_response(content=f"The channel couldn't be created:\n```txt{e}```")
         return
-
-    if stat_type == 'time' and (not _isValidTimezone(timezone) or not _isValidTimeformat(timeformat)):
-        await interaction.edit_original_response("You either entered a wrong timezone, or format.")
-        return
-    
+ 
     result = await _init_dock(guild=interaction.guild,
                               category=category,
                               channel=created_channel,
@@ -413,6 +508,11 @@ async def _statdock_add(
                               timeformat=timeformat,
                               countbots=countbots,
                               countusers=countusers,
+                              counttext=counttext,
+                              countvoice=countvoice,
+                              countcategory=countcategory,
+                              countstage=countstage,
+                              countforum=countforum,
                               role=None if not role else role,
                               prefix=None if not prefix else prefix.strip(),
                               frequency=frequency,
@@ -500,36 +600,33 @@ async def _statdock_list(interaction: discord.Interaction):
 
     embeds = []
     for entry in data:
+        count_type = _bitmap.get_active_keys(entry[5], single=True)
         embed_color = discord.Color.green() if entry[1] else discord.Color.red()
-        embed_title = f"Embed ID: {entry[0]} - {str(entry[5]).capitalize()}"
+        embed_title = f"Embed ID: {entry[0]} - {count_type.capitalize()}"
 
         embed = discord.Embed(title=embed_title, color=embed_color)
+        embed.add_field(name="Channel", value=f"<#{entry[4]}>")
+        embed.add_field(name="Frequency", value=f"{entry[10]} min")
+        embed.add_field(name="Last Updated", value=f"<t:{entry[11]}:F>")
+        embed.add_field(name="Prefix", value=entry[9])
 
-        if entry[5] == 'member':
-            embed.add_field(name="Channel", value=f"<#{entry[4]}>")
-            embed.add_field(name="Frequency", value=f"{entry[11]} min")
-            embed.add_field(name="Last Updated", value=f"<t:{entry[12]}:F>")
-            embed.add_field(name="Prefix", value=entry[10])
-            embed.add_field(name="Count Members", value=bool(entry[13]))
-            embed.add_field(name="Count Bots", value=bool(entry[8]))
-        elif entry[5] == 'role':
-            embed.add_field(name="Channel", value=f"<#{entry[4]}>")
-            embed.add_field(name="Frequency", value=f"{entry[11]} min")
-            embed.add_field(name="Last Updated", value=f"<t:{entry[12]}:F>")
-            embed.add_field(name="Prefix", value=entry[10])
-            embed.add_field(name="Count Members", value=bool(entry[13]))
-            embed.add_field(name="Count Bots", value=bool(entry[8]))
-            role = interaction.guild.get_role(entry[9])
-            if role:
-                embed.add_field(name="Role", value=role.mention, inline=False)
-        elif entry[5] == 'time':
-            embed.add_field(name="Channel", value=f"<#{entry[4]}>")
-            embed.add_field(name="Frequency", value=f"{entry[11]} min")
-            embed.add_field(name="Last Updated", value=f"<t:{entry[12]}:F>")
-            embed.add_field(name="Prefix", value=entry[10])
+        if count_type in ['member', 'role']:
+            embed.add_field(name="Count Members", value=_bitmap.check_key_in_bitkey('countusers', entry[12]))
+            embed.add_field(name="Count Bots", value=_bitmap.check_key_in_bitkey('countbots', entry[12]))
+            if count_type == 'role':
+                role = interaction.guild.get_role(entry[8])
+                if role:
+                    embed.add_field(name="Role", value=role.mention, inline=False)
+        elif count_type == 'time':
             embed.add_field(name="Timezone", value=entry[6])
             embed.add_field(name="Time Format", value=entry[7])
-
+        elif count_type == 'channel':
+            embed.add_field(name="Count Text", value=_bitmap.check_key_in_bitkey('counttext', entry[12]))
+            embed.add_field(name="Count Voice", value=_bitmap.check_key_in_bitkey('countvoice', entry[12]))
+            embed.add_field(name="Count Category", value=_bitmap.check_key_in_bitkey('countcategory', entry[12]))
+            embed.add_field(name="Count Stage", value=_bitmap.check_key_in_bitkey('countstage', entry[12]))
+            embed.add_field(name="Count Forum", value=_bitmap.check_key_in_bitkey('countforum', entry[12]))
+        
         embeds.append(embed)
 
         if len(embeds) == 10:
@@ -541,6 +638,29 @@ async def _statdock_list(interaction: discord.Interaction):
 
 
 
+@discord.app_commands.command(name='statdock_enable_hidden', description='Enables all disabled channels, that got deleted.')
+@discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
+@discord.app_commands.checks.has_permissions(manage_guild = True)
+async def _statdock_enable_hidden(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    _c.execute('SELECT * FROM `STATDOCK` WHERE `enabled` = 0 AND `guild_id` = ?', (interaction.guild.id,))
+    data = _c.fetchall()
+    for entry in data:
+        channel = interaction.guild.get_channel(entry[4])
+        if channel is not None:
+            continue
+        await _re_init_dock(guild_id=interaction.guild.id,
+                    category_id=entry[3],
+                    channel_id=entry[4],
+                    stat_type=_bitmap.get_active_keys(entry[5], single=True),
+                    timezone=entry[6],
+                    timeformat=entry[7],
+                    counter=entry[12],
+                    role_id=entry[8],
+                    prefix=entry[9],
+                    ignore_none_category=True
+                    )
+    await interaction.followup.send("All hidden docks got enabled.")
 
 
 

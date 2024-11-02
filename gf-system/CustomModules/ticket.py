@@ -68,12 +68,51 @@ class TicketHTML:
         final_message = ''.join(content for _, content in segments)
         return final_message
 
-    async def create_transcript(self, channel_id, creator):
+    async def embed_emojis_in_text(self, message_content, media_folder, channel_id):
+        emoji_pattern = r"<a?:\w+:\d+>"
+        emojis_found = re.findall(emoji_pattern, message_content)
+        downloaded_emoji_hashes = {}
+        
+        for emoji in emojis_found:
+            uuid_name = uuid4()
+            emoji_id = emoji.split(':')[-1][:-1]
+            is_animated = emoji.startswith('<a')
+            emoji_url = f"https://cdn.discordapp.com/emojis/{emoji_id}.{'gif' if is_animated else 'png'}"
+            
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.get(emoji_url) as resp:
+                        if resp.status == 200:
+                            emoji_file_path = os.path.join(media_folder, f'{uuid_name}.png')
+                            with open(emoji_file_path, 'wb') as f:
+                                f.write(await resp.read())
+
+                            emoji_hash = self.calculate_file_crc32(emoji_file_path)
+        
+                            if emoji_hash in downloaded_emoji_hashes:
+                                os.remove(emoji_file_path)
+                                emoji_file_path = downloaded_emoji_hashes[emoji_hash]
+                            else:
+                                downloaded_emoji_hashes[emoji_hash] = emoji_file_path
+
+                            message_content = message_content.replace(
+                                emoji,
+                                f"<img src='{os.path.join(f"ticket-{channel_id}", Path(emoji_file_path).name)}' alt='emoji' style='width: 20px; height: 20px;'>"
+                            )
+                except aiohttp.ClientError as e:
+                    print(f"Error downloading emoji {emoji}: {e}")
+                    continue
+    
+        return message_content
+
+    async def create_transcript(self, channel_id: int, creator_id: int):
         messages = []
         downloaded_files_hashes = {}
         downloaded_emoji_hashes = {}
-        op: discord.Member = await self.bot.fetch_user(creator)
+        op: discord.Member = await self.bot.fetch_user(creator_id)
         channel: discord.TextChannel = self.bot.get_channel(channel_id)
+        if not channel:
+            channel = self.bot.fetch_channel(channel_id)
         ticket_status = "Geschlossen"
         closing_date = datetime.now().strftime("%d.%m.%Y | %H:%M:%S")
         berlin_tz = pytz.timezone('Europe/Berlin')
@@ -180,7 +219,7 @@ class TicketHTML:
                             <span class="author-name">{message.author.name}</span>
                             <span class="timestamp">{message.created_at.astimezone(berlin_tz).strftime('%d.%m.%Y - %H:%M')}</span>
                         </div>
-                        <p>{await self.replace_mentions(message.content, channel.guild)}</p>
+                        <p>{await self.replace_mentions(await self.embed_emojis_in_text(message.content, media_folder, channel.id), channel.guild)}</p>
                         {attachment_html}
                         {reactions_html}
                     </div>
