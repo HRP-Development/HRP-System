@@ -599,36 +599,33 @@ async def _statdock_list(interaction: discord.Interaction):
 
     embeds = []
     for entry in data:
+        count_type = _bitmap.get_active_keys(entry[5], single=True)
         embed_color = discord.Color.green() if entry[1] else discord.Color.red()
-        embed_title = f"Embed ID: {entry[0]} - {str(entry[5]).capitalize()}"
+        embed_title = f"Embed ID: {entry[0]} - {count_type.capitalize()}"
 
         embed = discord.Embed(title=embed_title, color=embed_color)
+        embed.add_field(name="Channel", value=f"<#{entry[4]}>")
+        embed.add_field(name="Frequency", value=f"{entry[10]} min")
+        embed.add_field(name="Last Updated", value=f"<t:{entry[11]}:F>")
+        embed.add_field(name="Prefix", value=entry[9])
 
-        if entry[5] == 'member':
-            embed.add_field(name="Channel", value=f"<#{entry[4]}>")
-            embed.add_field(name="Frequency", value=f"{entry[11]} min")
-            embed.add_field(name="Last Updated", value=f"<t:{entry[12]}:F>")
-            embed.add_field(name="Prefix", value=entry[10])
-            embed.add_field(name="Count Members", value=bool(entry[13]))
-            embed.add_field(name="Count Bots", value=bool(entry[8]))
-        elif entry[5] == 'role':
-            embed.add_field(name="Channel", value=f"<#{entry[4]}>")
-            embed.add_field(name="Frequency", value=f"{entry[11]} min")
-            embed.add_field(name="Last Updated", value=f"<t:{entry[12]}:F>")
-            embed.add_field(name="Prefix", value=entry[10])
-            embed.add_field(name="Count Members", value=bool(entry[13]))
-            embed.add_field(name="Count Bots", value=bool(entry[8]))
-            role = interaction.guild.get_role(entry[9])
-            if role:
-                embed.add_field(name="Role", value=role.mention, inline=False)
-        elif entry[5] == 'time':
-            embed.add_field(name="Channel", value=f"<#{entry[4]}>")
-            embed.add_field(name="Frequency", value=f"{entry[11]} min")
-            embed.add_field(name="Last Updated", value=f"<t:{entry[12]}:F>")
-            embed.add_field(name="Prefix", value=entry[10])
+        if count_type in ['member', 'role']:
+            embed.add_field(name="Count Members", value=_bitmap.check_key_in_bitkey('countusers', entry[12]))
+            embed.add_field(name="Count Bots", value=_bitmap.check_key_in_bitkey('countbots', entry[12]))
+            if count_type == 'role':
+                role = interaction.guild.get_role(entry[8])
+                if role:
+                    embed.add_field(name="Role", value=role.mention, inline=False)
+        elif count_type == 'time':
             embed.add_field(name="Timezone", value=entry[6])
             embed.add_field(name="Time Format", value=entry[7])
-
+        elif count_type == 'channel':
+            embed.add_field(name="Count Text", value=_bitmap.check_key_in_bitkey('counttext', entry[12]))
+            embed.add_field(name="Count Voice", value=_bitmap.check_key_in_bitkey('countvoice', entry[12]))
+            embed.add_field(name="Count Category", value=_bitmap.check_key_in_bitkey('countcategory', entry[12]))
+            embed.add_field(name="Count Stage", value=_bitmap.check_key_in_bitkey('countstage', entry[12]))
+            embed.add_field(name="Count Forum", value=_bitmap.check_key_in_bitkey('countforum', entry[12]))
+        
         embeds.append(embed)
 
         if len(embeds) == 10:
