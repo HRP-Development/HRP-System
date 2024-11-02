@@ -5,7 +5,6 @@
 
 # Todo: • Abmeldungen für TB
 #       • Private Sprachchannel
-#       • Statdocks (disabling/enabling, removing, listing)
 
 import time
 startupTime_start = time.time()

@@ -111,25 +111,7 @@ def setup(client:discord.Client, tree: discord.app_commands.CommandTree, connect
     tree.add_command(_statdock_add)
     tree.add_command(_statdock_list)
     tree.add_command(_statdock_update)
-
-def _setup_database():
-    _c.executescript('''
-    CREATE TABLE IF NOT EXISTS "STATDOCK" (
-        `id` integer not null primary key autoincrement,
-        `enabled` BOOLEAN not null default 1,
-        `guild_id` INT not null,
-        `category_id` INT not null,
-        `channel_id` INT not null,
-        `type` INT not null,
-        `timezone` varchar(255) null,
-        `timeformat` varchar(255) null,
-        `role_id` INT null,
-        `prefix` varchar(255) null,
-        `frequency` INT not null,
-        `last_updated` INT not null,
-        `counter` INT not null default 0
-    )
-    ''')
+    tree.add_command(_statdock_enable_hidden)
 
 async def task():
     # Calling this function in setup_hook(), can/will lead to a deadlock!
@@ -167,6 +149,25 @@ async def task():
             await asyncio.sleep(10)
         except asyncio.CancelledError:
             break
+
+def _setup_database():
+    _c.executescript('''
+    CREATE TABLE IF NOT EXISTS "STATDOCK" (
+        `id` integer not null primary key autoincrement,
+        `enabled` BOOLEAN not null default 1,
+        `guild_id` INT not null,
+        `category_id` INT not null,
+        `channel_id` INT not null,
+        `type` INT not null,
+        `timezone` varchar(255) null,
+        `timeformat` varchar(255) null,
+        `role_id` INT null,
+        `prefix` varchar(255) null,
+        `frequency` INT not null,
+        `last_updated` INT not null,
+        `counter` INT not null default 0
+    )
+    ''')
 
 
 
@@ -245,11 +246,11 @@ async def _init_dock(guild: discord.Guild,
     )
     _conn.commit()
 
-async def _re_init_dock(guild_id, category_id, channel_id, stat_type, timezone, timeformat, counter, role_id, prefix):
+async def _re_init_dock(guild_id: int, category_id: int, channel_id: int, stat_type: int, timezone: str, timeformat: str, counter: int, role_id: int, prefix: str, ignore_none_category: bool = False):
     # Re-initializes the dock, if the channel got deleted and the stat dock not disabled/deleted.
     guild: discord.Guild = await _get_or_fetch('guild', guild_id)
     category: discord.CategoryChannel = await _get_or_fetch('channel', category_id)
-    if (guild is None or category is None or (stat_type == 'role' and (role := await _get_or_fetch('role', role_id)) is None)):
+    if (guild is None or (category is None and not ignore_none_category) or (stat_type == 'role' and (role := await _get_or_fetch('role', role_id)) is None)):
         _c.execute('DELETE FROM `STATDOCK` WHERE `channel_id` = ?', (channel_id,))
         _conn.commit()
         return
@@ -271,8 +272,12 @@ async def _re_init_dock(guild_id, category_id, channel_id, stat_type, timezone, 
                                                                    countstage=_bitmap.check_key_in_bitkey('countstage', counter),
                                                                    countforum=_bitmap.check_key_in_bitkey('countforum', counter)
                                                                    )
-                created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{channels_in_guild}")
-        _c.execute('UPDATE `STATDOCK` SET `last_updated` = ?, `channel_id` = ? WHERE `channel_id` = ?', (int(time()), created_channel.id, channel_id,))
+        if not category:
+            created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{channels_in_guild}")
+        else:
+            created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{channels_in_guild}", category=category)
+
+        _c.execute('UPDATE `STATDOCK` SET `last_updated` = ?, `channel_id` = ?, enabled = 1 WHERE `channel_id` = ?', (int(time()), created_channel.id, channel_id,))
         _conn.commit()
     except Exception as e:
         _logger.warning(e)
@@ -637,6 +642,29 @@ async def _statdock_list(interaction: discord.Interaction):
 
 
 
+@discord.app_commands.command(name='statdock_enable_hidden', description='Enables all disabled channels, that got deleted.')
+@discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
+@discord.app_commands.checks.has_permissions(manage_guild = True)
+async def _statdock_enable_hidden(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    _c.execute('SELECT * FROM `STATDOCK` WHERE `enabled` = 0 AND `guild_id` = ?', (interaction.guild.id,))
+    data = _c.fetchall()
+    for entry in data:
+        channel = interaction.guild.get_channel(entry[4])
+        if channel is not None:
+            continue
+        await _re_init_dock(guild_id=interaction.guild.id,
+                    category_id=entry[3],
+                    channel_id=entry[4],
+                    stat_type=_bitmap.get_active_keys(entry[5], single=True),
+                    timezone=entry[6],
+                    timeformat=entry[7],
+                    counter=entry[12],
+                    role_id=entry[8],
+                    prefix=entry[9],
+                    ignore_none_category=True
+                    )
+    await interaction.followup.send("All hidden docks got enabled.")
 
 
 
