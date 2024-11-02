@@ -5,7 +5,6 @@
 
 # Todo: • Abmeldungen für TB
 #       • Private Sprachchannel
-#       • Statdocks (delete all on server leave)
 
 import time
 startupTime_start = time.time()
@@ -55,7 +54,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.6.1"
+BOT_VERSION = "1.7.0"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
