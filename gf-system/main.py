@@ -47,7 +47,6 @@ load_dotenv()
 image_captcha = ImageCaptcha()
 APP_FOLDER_NAME = 'HRP-Sys'
 BOT_NAME = 'HRP-Sys'
-FOOTER_TEXT = 'HRP | System'
 os.makedirs(f'{APP_FOLDER_NAME}//Logs', exist_ok=True)
 os.makedirs(f'{APP_FOLDER_NAME}//Buffer', exist_ok=True)
 LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
@@ -69,7 +68,7 @@ sentry_sdk.init(
     traces_sample_rate=1.0,
     profiles_sample_rate=1.0,
     environment='Production',
-    release=f'HRP-System@{BOT_VERSION}'
+    release=f'{BOT_NAME}@{BOT_VERSION}'
 )
 
 log_manager = log_handler.LogManager(LOG_FOLDER, BOT_NAME, LOG_LEVEL)
@@ -270,8 +269,8 @@ class DiscordEvents():
                 color=discord.Color.purple(),
                 timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
-            admin_embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
-    
+            admin_embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+            
             close_button = discord.ui.Button(label="✅ Schließen", style=discord.ButtonStyle.blurple, custom_id="close_ticket")
             add_button = discord.ui.Button(label="➕ Hinzufügen", style=discord.ButtonStyle.green, custom_id="add_ticket")
             remove_button = discord.ui.Button(label="➖ Entfernen", style=discord.ButtonStyle.red, custom_id="remove_ticket")
@@ -440,7 +439,7 @@ class DiscordEvents():
             color=discord.Color.orange(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         if before.name != after.name:
            embed.add_field(name="Name geändert", value=f"Von **{before.name}** zu **{after.name}**", inline=False)
         row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.id,)).fetchone()
@@ -455,7 +454,7 @@ class DiscordEvents():
             color=discord.Color.purple(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         if before.name != after.name:
             embed.add_field(name="Servername geändert", value=f"Von **{before.name}** zu **{after.name}**", inline=False)
         if before.icon != after.icon:
@@ -519,7 +518,7 @@ class DiscordEvents():
         embed.add_field(name="Channel ID:", value=channel.id)
         field_count += 1
 
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
         row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (channel.guild.id,)).fetchone()
         channel = await Functions.get_or_fetch('channel', row[0]) if row else None
@@ -533,7 +532,7 @@ class DiscordEvents():
             color=discord.Color.red(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (channel.guild.id,)).fetchone()
         channel = await Functions.get_or_fetch('channel', row[0]) if row else None
         if channel is not None:
@@ -552,7 +551,7 @@ class DiscordEvents():
         embed.add_field(name="Getrennt angezeigt:", value="✅" if role.hoist else "❌", inline=False)
         embed.add_field(name="Rollen ID:", value=role.id, inline=False)
 
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
         row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (role.guild.id,)).fetchone()
         channel = await Functions.get_or_fetch('channel', row[0]) if row else None
@@ -566,7 +565,7 @@ class DiscordEvents():
             color=discord.Color.red(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (role.guild.id,)).fetchone()
         channel = await Functions.get_or_fetch('channel', row[0]) if row else None
         if channel is not None:
@@ -637,7 +636,7 @@ class DiscordEvents():
             for emb in batch:
                 embed_message.add_field(name=emb.title, value=emb.description, inline=False)
     
-            embed_message.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+            embed_message.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         
             try:
                 if channel is not None:
@@ -660,7 +659,7 @@ class DiscordEvents():
         )
         if message.content:
             embed.add_field(name="Inhalt", value=message.content, inline=False)
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         
         try:
             async for entry in message.guild.audit_logs(limit=1, action=discord.AuditLogAction.message_delete):
@@ -684,7 +683,7 @@ class DiscordEvents():
             color=discord.Color.blue(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         
         changes = []
 
@@ -776,7 +775,7 @@ class DiscordEvents():
         embed.add_field(name="Alt", value=f"```{before.content}```" or "*(N/A)*", inline=False)
         embed.add_field(name="Neu", value=f"```{after.content}```" or "*(N/A)*", inline=False)
 
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
         row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.guild.id,)).fetchone()
         channel = await Functions.get_or_fetch('channel', row[0]) if row else None
@@ -822,7 +821,7 @@ class DiscordEvents():
             color=discord.Color.green(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        welcome_embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        welcome_embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         welcome_embed.set_thumbnail(url=member.avatar.url if member.avatar else '')
     
         guild = c.execute("SELECT welcome_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (member.guild.id,)).fetchone()
@@ -843,7 +842,7 @@ class DiscordEvents():
             color=discord.Color.red(),
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
-        leave_embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        leave_embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         leave_embed.set_thumbnail(url=member.avatar.url if member.avatar else '')
     
         guild = c.execute("SELECT leave_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (member.guild.id,)).fetchone()
@@ -1245,7 +1244,7 @@ class Functions():
         embed.add_field(name="Map", value=await Functions.rcon_lua_run(LUA_COMMANDS['GetMap'], host, port, passwd), inline=True)
         embed.add_field(name="Gamemode", value=await Functions.rcon_lua_run(LUA_COMMANDS['ActiveGamemode'], host, port, passwd), inline=True)
         embed.add_field(name='\u200b', value='\u200b', inline=True)
-        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         if update:
             try:
                 await message_on_update.edit(embed=embed)
@@ -1295,7 +1294,7 @@ class Functions():
                     timestamp=datetime.datetime.now(datetime.UTC)
                 )
                 
-                embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+                embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         
                 if role.icon:
                     embed.set_thumbnail(url=role.icon.url)
@@ -1314,7 +1313,7 @@ class Functions():
             embed.title = "Nutzer wurde getimeouted"
             embed.color = discord.Color.red()
             embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
-            embed.set_footer(text=FOOTER_TEXT, icon_url=message.guild.icon.url)
+            embed.set_footer(text=bot.user.display_name, icon_url=message.guild.icon.url)
             
             if message.author.is_timed_out():
                 return
@@ -1497,7 +1496,7 @@ class Tasks():
                         embed.set_image(url=game_details['image_url'])
                         embed.add_field(name='Titel', value=game_details['title'], inline=False)
                         embed.add_field(name='Beschreibung', value=game_details['description'], inline=False)
-                        embed.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+                        embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
                         embeds.append(embed)
                         c.execute("INSERT INTO free_games (TITEL_ID, DATUM) VALUES (?, ?)", (game['id'], int(time.time())))
     
@@ -1907,7 +1906,7 @@ async def self(interaction: discord.Interaction, welcome_channel: discord.TextCh
             color = discord.Color.green(),
             timestamp=datetime.datetime.now(datetime.UTC)
             )
-        erfolgreich.set_footer(text = FOOTER_TEXT, icon_url = bot.user.avatar.url if bot.user.avatar else '')
+        erfolgreich.set_footer(text = bot.user.display_name, icon_url = bot.user.avatar.url if bot.user.avatar else '')
         await interaction.edit_original_response(embed=erfolgreich)
     else:
         warning = discord.Embed(
@@ -1946,7 +1945,7 @@ async def self(interaction: discord.Interaction, amount: int):
             color=discord.Color.green(),
             timestamp=datetime.datetime.now(datetime.UTC)
         )
-        clear_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        clear_eb.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         await interaction.followup.send(embed=clear_eb)
     except ValueError:
         error_eb = discord.Embed(
@@ -1955,7 +1954,7 @@ async def self(interaction: discord.Interaction, amount: int):
            color=discord.Color.red(),
            timestamp=datetime.datetime.now(datetime.UTC)
         )
-        error_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        error_eb.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         await interaction.followup.send(embed=error_eb)
         
 @tree.command(name='lock', description='Locks the chat.')
@@ -1970,7 +1969,7 @@ async def self(interaction: discord.Interaction):
             color=discord.Color.red(),
             timestamp=datetime.datetime.now(datetime.UTC)
         )
-        lock_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        lock_eb.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         await interaction.followup.send(embed=lock_eb)
         return
     else:
@@ -1981,7 +1980,7 @@ async def self(interaction: discord.Interaction):
             color=discord.Color.green(),
             timestamp=datetime.datetime.now(datetime.UTC)
         )
-        lock_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        lock_eb.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         await interaction.followup.send(embed=lock_eb)
     
 @tree.command(name='unlock', description='Unlocks the chat.')
@@ -1996,7 +1995,7 @@ async def self(interaction: discord.Interaction):
             color=discord.Color.red(),
             timestamp=datetime.datetime.now(datetime.UTC)
         )
-        unlock_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        unlock_eb.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         await interaction.followup.send(embed=unlock_eb)
         return
     else:
@@ -2007,7 +2006,7 @@ async def self(interaction: discord.Interaction):
             color=discord.Color.green(),
             timestamp=datetime.datetime.now(datetime.UTC)
         )
-        unlock_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+        unlock_eb.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         await interaction.followup.send(embed=unlock_eb)
     
 @tree.command(name='kick', description='Kicks a user.')
@@ -2026,7 +2025,7 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
         color=discord.Color.green(),
         timestamp=datetime.datetime.now(datetime.UTC)
     )
-    kick_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+    kick_eb.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
     
     user_notify = discord.Embed(
         title='⚔️ Kick',
@@ -2037,7 +2036,7 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
     user_notify.add_field(name="Ausführendes Teammitglied", value=interaction.user)
     user_notify.add_field(name="Grund", value=reason)
     user_notify.add_field(name="Server", value=interaction.guild)
-    user_notify.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+    user_notify.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
     try:
         await user.send(embed=user_notify)
@@ -2061,7 +2060,7 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
         color=discord.Color.green(),
         timestamp=datetime.datetime.now(datetime.UTC)
     )
-    ban_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+    ban_eb.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
     
     user_notify = discord.Embed(
         title='🔨 Ban',
@@ -2072,7 +2071,7 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
     user_notify.add_field(name="Ausführendes Teammitglied", value=interaction.user)
     user_notify.add_field(name="Grund", value=reason)
     user_notify.add_field(name="Server", value=interaction.guild)
-    user_notify.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+    user_notify.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
     try:
         await user.send(embed=user_notify)
@@ -2096,7 +2095,7 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
         color=discord.Color.green(),
         timestamp=datetime.datetime.now(datetime.UTC)
     )
-    unban_eb.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+    unban_eb.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
     
     user_notify = discord.Embed(
         title='🔓 Unban',
@@ -2107,7 +2106,7 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
     user_notify.add_field(name="Ausführendes Teammitglied", value=interaction.user)
     user_notify.add_field(name="Grund", value=reason)
     user_notify.add_field(name="Server", value=interaction.guild)
-    user_notify.set_footer(text=FOOTER_TEXT, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+    user_notify.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
     try:
         await user.send(embed=user_notify)
@@ -2185,7 +2184,7 @@ async def team_update(interaction: discord.Interaction, user: discord.Member, ro
         color=color,
         timestamp=datetime.datetime.now(datetime.timezone.utc)
     )
-    embed.set_footer(text=FOOTER_TEXT, icon_url=interaction.guild.me.avatar.url)
+    embed.set_footer(text=bot.user.display_name, icon_url=interaction.guild.me.avatar.url)
     embed.add_field(name='Team:', value=discord_role.name, inline=False)
     embed.add_field(name='User:', value=user.mention, inline=False)
     if category.value == "new_member":
@@ -2353,7 +2352,7 @@ async def self(interaction: discord.Interaction, channel: discord.TextChannel, a
     description='Hier kannst du ein Ticket erstellen. Wähle unten eine Kategorie aus.',
     color=discord.Color.purple()
     )
-    ticketsystem_embed.set_footer(text=FOOTER_TEXT, icon_url=bot_avatar)
+    ticketsystem_embed.set_footer(text=bot.user.display_name, icon_url=bot_avatar)
 
     c.execute('SELECT * FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild_id,))
     ticketsystem = c.fetchone()
@@ -2423,7 +2422,7 @@ async def self(interaction: discord.Interaction):
                           color = discord.Color.brand_green()
                           
                       )
-    embed.set_footer(text = FOOTER_TEXT, icon_url = bot.user.avatar.url if bot.user.avatar else '')
+    embed.set_footer(text = bot.user.display_name, icon_url = bot.user.avatar.url if bot.user.avatar else '')
     action_text = {
         'ban': f"Bitte beachte, dass du {f' für {Functions.format_seconds(ban_time)}' if ban_time else ''} gebannt wirst, wenn du dich nicht innerhalb von {timeout} Minuten verifizierst.",
         'kick': f"Bitte beachte, dass du gekickt wirst, wenn du dich nicht innerhalb von {timeout} Minuten verifizierst.",

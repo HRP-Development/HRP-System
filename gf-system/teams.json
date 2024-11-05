@@ -33,17 +33,12 @@
             "role_id": 1297333326591295515
         },
         {
-            "role_name": "⚔️ Jedi vs Sith Team",
-            "role_id": 1297333325710495825
-        },
-        {
-            "role_name": "🔧 Discord Verwaltung",
+            "role_name": "🔧 AdminTeam",
             "role_id": 1297333314511962112
         },
         {
-            "role_name": "Support",
-            "role_id": 1297548437532971058
+            "role_name": "⚔️ Jedi vs Sith Team",
+            "role_id": 1297333325710495825
         }
     ]
 }
-  

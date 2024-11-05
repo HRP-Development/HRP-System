@@ -10,16 +10,16 @@ COPY requirements.txt .
 ENV TERM=xterm
 ENV PYTHONUNBUFFERED=1
 
-RUN apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev libc-dev linux-headers rust cargo g++ && \
+RUN apk update && \
+    apk add --no-cache --virtual .build-deps gcc musl-dev python3-dev linux-headers jpeg-dev zlib-dev libjpeg rust cargo && \
     apk add --no-cache curl && \
-    python -m pip install --upgrade pip && \
-    pip install --upgrade setuptools wheel && \
+    python -m pip install --upgrade pip setuptools && \
     pip install -r requirements.txt && \
     apk del .build-deps && \
     find /usr/local \
-    \( -type d -a -name test -o -name tests \) \
-    -o \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
-    -exec rm -rf '{}' + && \
+      \( -type d -a \( -name test -o -name tests \) \) \
+      -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
+      -exec rm -rf '{}' \; && \
     rm -rf /root/.cache/pip
 
 CMD ["python3", "main.py"]
