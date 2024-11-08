@@ -2123,26 +2123,23 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
 @discord.app_commands.checks.has_permissions(manage_roles=True)
 @discord.app_commands.describe(user='User')
 @discord.app_commands.choices(role=[
-    discord.app_commands.Choice(name="Community Verwaltung", value="communityverwaltung"),
-    discord.app_commands.Choice(name="Community Leitung", value="Communityleitung"),
-    discord.app_commands.Choice(name="Infrastruktur Verwaltung", value="Infrastruktur_Verwaltung"),
-    discord.app_commands.Choice(name="Stv. Projektleitung", value="Stv_Projektleiter"),
+    discord.app_commands.Choice(name="Communityleitung", value="communityleitung"),
+    discord.app_commands.Choice(name="Communitymanager", value="communitymanager"),
+    discord.app_commands.Choice(name="Infrastruktur Verwaltung", value="infrastruktur_verwaltung"),
+    discord.app_commands.Choice(name="Projektleiter", value="projektleiter"),
     ############################################################################################
-    discord.app_commands.Choice(name="Jedi vs Sith - Verwaltung", value="jvs_verwaltung"),
-    discord.app_commands.Choice(name="Jedi vs Sith - Stv. Teamleitung", value="jvs_stv_teamleitung"),
-    discord.app_commands.Choice(name="Jedi vs Sith - S-Admin", value="jvs_s_admin"),
-    discord.app_commands.Choice(name="Jedi vs Sith - Admin", value="jvs_admin"),
-    discord.app_commands.Choice(name="Jedi vs Sith - Team", value="jvs_team"),
-    discord.app_commands.Choice(name="Jedi vs Sith - Developer", value="jvs_dev"),
+    discord.app_commands.Choice(name="Discord Verwaltung", value="discord_leitung"),
+    discord.app_commands.Choice(name="Discord Team", value="discord_team"),
     ############################################################################################
+    discord.app_commands.Choice(name="Forum Verwaltung", value="forum_leitung"),
+    discord.app_commands.Choice(name="Forum Team", value="forum_team"),
+    ############################################################################################
+    discord.app_commands.Choice(name="TTT Team", value="ttt_team"),
+    discord.app_commands.Choice(name="JvS Team", value="jvs_team"),
+    discord.app_commands.Choice(name="DarkRP Team", value="darkrp_team"),
+    ############################################################################################
+    discord.app_commands.Choice(name="Head Developer", value="head_developer"),
     discord.app_commands.Choice(name="Developer", value="developer"),
-    discord.app_commands.Choice(name="Grafik Designer", value="grafikdesigner"),
-    ############################################################################################
-    discord.app_commands.Choice(name="Discord - Verwaltung", value="discord_verwaltung"),
-    discord.app_commands.Choice(name="Moderator", value="moderator"),
-    discord.app_commands.Choice(name="Supporter", value="supporter"),
-    discord.app_commands.Choice(name="Event - Teamleitung", value="event_leitung"),
-    discord.app_commands.Choice(name="Event - Team", value="event_team"),
 ])
 @discord.app_commands.choices(category=[
     discord.app_commands.Choice(name="Neues Teammitglied", value="new_member"),
@@ -2150,17 +2147,23 @@ async def self(interaction: discord.Interaction, user: discord.User, reason: str
 ])
 async def team_update(interaction: discord.Interaction, user: discord.Member, role: discord.app_commands.Choice[str], category: discord.app_commands.Choice[str]):
     role_mapping = {
-        "Communityleitung": 1297333309650767944,
-        "Infrastruktur_Verwaltung": 1297333311407919107,
-        "Projektleiter": 1297333313379504180,
-        "jvs_team": 1297333325710495825,
-        "head_dev": 1297333322846044320,
-        "developer":1297333323823321109,
-        "discord_leitung":1297333315447033856,
-        "discord_team": 1297333316449730651,
+        "communityleitung": 1297333309650767944,
         "communitymanager": 1297333310737088532,
+        "infrastruktur_verwaltung": 1297333311407919107,
+        "projektleiter": 1297333313379504180,
+        #####################################
+        "discord_leitung": 1297333315447033856,
+        "discord_team": 1297333316449730651,
+        #####################################
+        "forum_leitung": 1297333317808685086,
+        "forum_team": 1297333319075233832,
+        #####################################
         "ttt_team": 1297333324792070184,
+        "jvs_team": 1297333325710495825,
         "darkrp_team": 1297333326591295515,
+        #####################################
+        "head_developer": 1297333322846044320,
+        "developer": 1297333323823321109,
     }
 
     role_id = role_mapping[role.value]
