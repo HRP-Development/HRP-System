@@ -10,6 +10,7 @@ import time
 startupTime_start = time.time()
 import asyncio
 import datetime
+import difflib
 import discord
 import io
 import json
@@ -53,7 +54,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.7.0"
+BOT_VERSION = "1.7.1"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -770,11 +771,15 @@ class DiscordEvents():
             color=0x2f3136,
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
+
+        if len(before.content) + len(after.content) <= 5800:
+            embed.add_field(name="Alt", value=f"```{before.content}```" or "*(N/A)*", inline=False)
+            embed.add_field(name="Neu", value=f"```{after.content}```" or "*(N/A)*", inline=False)
+        else:
+            embed.add_field(name="\u2007", value=f"```Änderung von zu großem Text!```" or "*(N/A)*", inline=False)
+
         embed.set_author(name=after.author.nick if after.author.nick is not None else after.author.name, icon_url=after.author.avatar.url)
         embed.description = (f"✏️ **Nachricht von** {after.author.mention} **wurde in** {after.channel.mention} **bearbeitet**.\n[Jump to Message]({after.jump_url})")
-        embed.add_field(name="Alt", value=f"```{before.content}```" or "*(N/A)*", inline=False)
-        embed.add_field(name="Neu", value=f"```{after.content}```" or "*(N/A)*", inline=False)
-
         embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
 
         row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.guild.id,)).fetchone()

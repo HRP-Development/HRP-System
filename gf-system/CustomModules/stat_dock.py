@@ -268,10 +268,6 @@ async def _re_init_dock(guild_id: int, category_id: int, channel_id: int, stat_t
                                                                    countstage=_bitmap.check_key_in_bitkey('countstage', counter),
                                                                    countforum=_bitmap.check_key_in_bitkey('countforum', counter)
                                                                    )
-        if not category:
-            created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{channels_in_guild}")
-        else:
-            created_channel = await guild.create_voice_channel(name=f"{prefix + " " if prefix else ""}{channels_in_guild}", category=category)
 
         _c.execute('UPDATE `STATDOCK` SET `last_updated` = ?, `channel_id` = ?, enabled = 1 WHERE `channel_id` = ?', (int(time()), created_channel.id, channel_id,))
         _conn.commit()
@@ -323,8 +319,8 @@ async def _update_dock(enabled, guild_id, category_id, channel_id, stat_type, ti
                     new_name = f"{prefix + ' ' if prefix else ''}{channels_in_guild}"
             if new_name and channel.name != new_name:
                 await channel.edit(name=new_name)
-                _c.execute('UPDATE `STATDOCK` SET `last_updated` = ? WHERE `channel_id` = ?', (int(time()), channel_id,))
-                _conn.commit()
+            _c.execute('UPDATE `STATDOCK` SET `last_updated` = ? WHERE `channel_id` = ?', (int(time()), channel_id,))
+            _conn.commit()
         except Exception as e:
             _logger.warning(e)
 
@@ -610,22 +606,23 @@ async def _statdock_list(interaction: discord.Interaction):
         embed.add_field(name="Last Updated", value=f"<t:{entry[11]}:F>")
         embed.add_field(name="Prefix", value=entry[9])
 
-        if count_type in ['member', 'role']:
-            embed.add_field(name="Count Members", value=_bitmap.check_key_in_bitkey('countusers', entry[12]))
-            embed.add_field(name="Count Bots", value=_bitmap.check_key_in_bitkey('countbots', entry[12]))
-            if count_type == 'role':
-                role = interaction.guild.get_role(entry[8])
-                if role:
-                    embed.add_field(name="Role", value=role.mention, inline=False)
-        elif count_type == 'time':
-            embed.add_field(name="Timezone", value=entry[6])
-            embed.add_field(name="Time Format", value=entry[7])
-        elif count_type == 'channel':
-            embed.add_field(name="Count Text", value=_bitmap.check_key_in_bitkey('counttext', entry[12]))
-            embed.add_field(name="Count Voice", value=_bitmap.check_key_in_bitkey('countvoice', entry[12]))
-            embed.add_field(name="Count Category", value=_bitmap.check_key_in_bitkey('countcategory', entry[12]))
-            embed.add_field(name="Count Stage", value=_bitmap.check_key_in_bitkey('countstage', entry[12]))
-            embed.add_field(name="Count Forum", value=_bitmap.check_key_in_bitkey('countforum', entry[12]))
+        match count_type:
+            case ['member', 'role']:
+                embed.add_field(name="Count Members", value=_bitmap.check_key_in_bitkey('countusers', entry[12]))
+                embed.add_field(name="Count Bots", value=_bitmap.check_key_in_bitkey('countbots', entry[12]))
+                if count_type == 'role':
+                    role = interaction.guild.get_role(entry[8])
+                    if role:
+                        embed.add_field(name="Role", value=role.mention, inline=False)
+            case 'time':
+                embed.add_field(name="Timezone", value=entry[6])
+                embed.add_field(name="Time Format", value=entry[7])
+            case 'channel':
+                embed.add_field(name="Count Text", value=_bitmap.check_key_in_bitkey('counttext', entry[12]))
+                embed.add_field(name="Count Voice", value=_bitmap.check_key_in_bitkey('countvoice', entry[12]))
+                embed.add_field(name="Count Category", value=_bitmap.check_key_in_bitkey('countcategory', entry[12]))
+                embed.add_field(name="Count Stage", value=_bitmap.check_key_in_bitkey('countstage', entry[12]))
+                embed.add_field(name="Count Forum", value=_bitmap.check_key_in_bitkey('countforum', entry[12]))
         
         embeds.append(embed)
 
