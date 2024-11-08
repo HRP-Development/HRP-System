@@ -2156,7 +2156,6 @@ async def team_update(interaction: discord.Interaction, user: discord.Member, ro
         "communitymanager": 1297333310737088532,
         "ttt_team": 1297333324792070184,
         "darkrp_team": 1297333326591295515,
-        "support": 1297548437532971058,
     }
 
     role_id = role_mapping[role.value]
