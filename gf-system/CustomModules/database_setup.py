@@ -12,7 +12,6 @@ class database():
 	        "GUILD"	INTEGER NOT NULL,
 	        "HOST"	TEXT NOT NULL,
 	        "PORT"	INTEGER NOT NULL,
-	        "PASS"	TEXT NOT NULL,
 	        PRIMARY KEY("ID" AUTOINCREMENT)
         );
         CREATE TABLE IF NOT EXISTS "EMBEDS" (
@@ -57,14 +56,6 @@ class database():
             "GUILD_ID"      INTEGER NOT NULL,
             "CATEGORY"      TEXT NOT NULL,
             PRIMARY KEY("ID" AUTOINCREMENT)            
-        );
-        CREATE TABLE IF NOT EXISTS "SERVER" (
-	        "ID"	INTEGER,
-	        "GUILD"	INTEGER NOT NULL,
-	        "HOST"	TEXT NOT NULL,
-	        "PORT"	INTEGER NOT NULL,
-	        "PASS"	TEXT NOT NULL,
-	        PRIMARY KEY("ID" AUTOINCREMENT)
         );
         CREATE TABLE IF NOT EXISTS "EMBEDS" (
 	        "ID"	        INTEGER,

@@ -8,9 +8,9 @@
 
 import time
 startupTime_start = time.time()
+import a2s
 import asyncio
 import datetime
-import difflib
 import discord
 import io
 import json
@@ -35,7 +35,6 @@ from CustomModules import epic_games_api
 from CustomModules import stat_dock
 
 from aiohttp import web
-from rcon import source
 from dotenv import load_dotenv
 from typing import Optional, Any
 from urllib.parse import urlparse
@@ -54,7 +53,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.7.1"
+BOT_VERSION = "1.8.0"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -78,15 +77,6 @@ program_logger = log_manager.get_logger('Program')
 program_logger.info('Starte Discord Bot...')
 
 SteamAPI = steam_api.API(STEAM_API_KEY)
-
-LUA_COMMANDS = {
-    "GetIPAddress": "print(game.GetIPAddress())",
-    "GetMap": "print(game.GetMap())",
-    "CurrentPlayers": "print(#player.GetAll())",
-    "MaxPlayers": "print(game.MaxPlayers())",
-    "GetHostName": "print(GetHostName())",
-    "ActiveGamemode": "print(engine.ActiveGamemode())"
-}
 
 class JSONValidator:
     schema = {
@@ -1218,36 +1208,27 @@ class Functions():
                 pass
         return item_object
     
-    async def rcon_lua_run(command: str, host: str, port: int, passwd: str):
-        try:
-            response = await source.rcon(f'lua_run {command}', host=host, port=port, passwd=passwd)
-            index = response.find('rcon')
-            if index != -1:
-                response = response[:index]
-            response = response.replace('\n', '').replace(command, '').replace('>', '').replace(' ', '').replace('(', '').replace(')', '').replace('...', '')
-            return response
-        except Exception as e:
-            program_logger.error(f'Fehler beim Ausführen von rcon: {e}')
-            return e
-
     async def send_update_serverpanel(entry_id: tuple, channel: discord.TextChannel, update: bool = False, message_on_update: discord.Message = ''):
-        host, port, passwd = entry_id[2], entry_id[3], entry_id[4]
+        host, port = entry_id[2], entry_id[3]
+        server_info = await a2s.ainfo((host, port))
         embed = discord.Embed(
-            title = await Functions.rcon_lua_run(LUA_COMMANDS['GetHostName'], host, port, passwd),
+            title = server_info.server_name,
             url = f'{STEAM_REDIRECT_URL}?ip={host}&port={port}',
             description = f"**IP:** {host}:{port}",
             color = discord.Color.brand_green(),
             timestamp = datetime.datetime.now(datetime.UTC),
         )
-
+        
         guild_image = channel.guild.icon.url if channel.guild.icon else 'https://cdn.cloudflare.steamstatic.com/steam/apps/4000/header.jpg'
         embed.set_thumbnail(url=guild_image)
         #embed.add_field(name='\u200b', value='\u200b', inline=False)
-        embed.add_field(name="Aktuelle Spieler", value=await Functions.rcon_lua_run(LUA_COMMANDS['CurrentPlayers'], host, port, passwd), inline=True)
-        embed.add_field(name="Maximale Spieler", value=await Functions.rcon_lua_run(LUA_COMMANDS['MaxPlayers'], host, port, passwd), inline=True)
+        embed.add_field(name="Gamemode", value=server_info.game, inline=True)
+        embed.add_field(name="Version", value=server_info.version, inline=True)
+        embed.add_field(name="Ping", value=f"{server_info.ping * 1000:.1f}ms", inline=True)
+        embed.add_field(name="Aktuelle Spieler", value=server_info.player_count, inline=True)
+        embed.add_field(name="Maximale Spieler", value=server_info.max_players, inline=True)
         embed.add_field(name='\u200b', value='\u200b', inline=True)
-        embed.add_field(name="Map", value=await Functions.rcon_lua_run(LUA_COMMANDS['GetMap'], host, port, passwd), inline=True)
-        embed.add_field(name="Gamemode", value=await Functions.rcon_lua_run(LUA_COMMANDS['ActiveGamemode'], host, port, passwd), inline=True)
+        embed.add_field(name="Map", value=server_info.map_name, inline=True)
         embed.add_field(name='\u200b', value='\u200b', inline=True)
         embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         if update:
@@ -2216,25 +2197,19 @@ async def team_update(interaction: discord.Interaction, user: discord.Member, ro
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(administrator = True)
 @discord.app_commands.describe(host='ip address of the server.',
-                               port='server port.',
-                               passwd='rcon password of the server.'
+                               port='server port.'
                                )
-async def self(interaction: discord.Interaction, host: str, port: int, passwd: str):
+async def self(interaction: discord.Interaction, host: str, port: int):
     await interaction.response.defer(ephemeral=True)
-    c.execute("SELECT * FROM SERVER WHERE GUILD = ? AND HOST = ? AND PORT = ? AND PASS = ?", (interaction.guild_id, host, port, passwd))
+    c.execute("SELECT * FROM SERVER WHERE GUILD = ? AND HOST = ? AND PORT = ?", (interaction.guild_id, host, port))
     if c.fetchone() is not None:
         await interaction.followup.send(content=f"Error: Server already registered.", ephemeral=True)
     else:
-        test = await Functions.rcon_lua_run(LUA_COMMANDS['GetIPAddress'], host, port, passwd)
-        if type(test) != str:
-            await interaction.followup.send(content=f"Error: {test}", ephemeral=True)
-            return
-        else:
-            c.execute("INSERT INTO SERVER (GUILD, HOST, PORT, PASS) VALUES (?, ?, ?, ?)", (interaction.guild_id, host, port, passwd))
-            conn.commit()
-            c.execute("SELECT ID FROM SERVER WHERE GUILD = ? AND HOST = ? AND PORT = ? AND PASS = ?", (interaction.guild_id, host, port, passwd))
-            ID = c.fetchone()[0]
-            await interaction.followup.send(content=f"Server registered successfully.\nYou can now use `/send_panel` with ID {ID}, to send it to a channel.", ephemeral=True)
+        c.execute("INSERT INTO SERVER (GUILD, HOST, PORT) VALUES (?, ?, ?)", (interaction.guild_id, host, port))
+        conn.commit()
+        c.execute("SELECT ID FROM SERVER WHERE GUILD = ? AND HOST = ? AND PORT = ?", (interaction.guild_id, host, port))
+        ID = c.fetchone()[0]
+        await interaction.followup.send(content=f"Server registered successfully.\nYou can now use `/send_panel` with ID {ID}, to send it to a channel.", ephemeral=True)
 
 @tree.command(name = 'send_panel_server', description = 'send the panel into a channel.')
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.guild_id))
