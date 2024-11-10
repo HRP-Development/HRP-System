@@ -38,6 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include=".env" />
+    <Content Include="release_build.bat" />
     <Content Include="requirements.txt" />
     <Content Include="teams.json" />
   </ItemGroup>
