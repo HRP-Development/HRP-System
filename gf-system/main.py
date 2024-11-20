@@ -1210,7 +1210,10 @@ class Functions():
     
     async def send_update_serverpanel(entry_id: tuple, channel: discord.TextChannel, update: bool = False, message_on_update: discord.Message = ''):
         host, port = entry_id[2], entry_id[3]
-        server_info = await a2s.ainfo((host, port))
+        try:
+            server_info = await a2s.ainfo((host, port))
+        except:
+            return "Server nicht erreichbar."
         embed = discord.Embed(
             title = server_info.server_name,
             url = f'{STEAM_REDIRECT_URL}?ip={host}&port={port}',
