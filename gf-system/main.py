@@ -53,7 +53,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.9.0"
+BOT_VERSION = "1.9.1"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -2332,6 +2332,8 @@ async def self(interaction: discord.Interaction, channel: discord.TextChannel, a
                 super().__init__()
                 self.add_item(TicketDropdown())
 
+    await interaction.response.defer(ephemeral=True)
+
     bot_avatar = bot.user.avatar.url if bot.user.avatar else ''
     ticketsystem_embed = discord.Embed(
     title='Ticket System',
@@ -2381,11 +2383,11 @@ async def self(interaction: discord.Interaction, channel: discord.TextChannel, a
             )
             conn.commit()
             await channel.send(embed=ticketsystem_embed, view=TicketSystemView())
-            await interaction.response.send_message(content=f'Ticketsystem wurde erfolgreich erstellt.', ephemeral=True)
+            await interaction.followup.send(content='Ticketsystem wurde erfolgreich erstellt.')
         except Exception as e:
             text = f"Ticketsystem konnte nicht erstellt werden. -> {e}"
             program_logger.warning(text)
-            await interaction.response.send_message(text)
+            await interaction.followup.send(text)
             
 @tree.command(name = 'remove_ticketsystem', description = 'removes the ticket channel.')
 @discord.app_commands.checks.cooldown(1, 120, key=lambda i: (i.guild_id))
