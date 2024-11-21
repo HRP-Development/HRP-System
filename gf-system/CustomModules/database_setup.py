@@ -34,11 +34,18 @@ class database():
             PRIMARY KEY("GUILD_ID")
         );
         CREATE TABLE IF NOT EXISTS "TICKET_SYSTEM" (
-            "ID"	        INTEGER,
-            "GUILD_ID"	        INTEGER NOT NULL,
-            "CHANNEL"	    INTEGER NOT NULL,
-            "EMBED_ID"      INTEGER,
-            PRIMARY KEY("ID" AUTOINCREMENT)
+            "ID" INTEGER PRIMARY KEY AUTOINCREMENT,
+            "GUILD_ID" INTEGER NOT NULL,
+            "CHANNEL" INTEGER NOT NULL,
+            "ARCHIVE_CHANNEL_ID" INTEGER,
+            "SUPPORT_ROLE_ID_SUPPORT" INTEGER,
+            "SUPPORT_ROLE_ID_REPORT" INTEGER,
+            "SUPPORT_ROLE_ID_DISCORD" INTEGER,
+            "SUPPORT_ROLE_ID_BUG" INTEGER,
+            "SUPPORT_ROLE_ID_FEEDBACK" INTEGER,
+            "SUPPORT_ROLE_ID_SONSTIGES" INTEGER,
+            "SUPPORT_ROLE_ID_ENTBANNUNG" INTEGER,
+            "SUPPORT_ROLE_ID_PUTSCHANTRAG" INTEGER
         );
         CREATE TABLE IF NOT EXISTS "warns" (
             "ID"	        INTEGER,
@@ -99,8 +106,6 @@ class database():
         ''')
 
         queries = [
-            'ALTER TABLE TICKET_SYSTEM ADD COLUMN "ARCHIVE_CHANNEL_ID" INTEGER;',
-            'ALTER TABLE TICKET_SYSTEM ADD COLUMN "SUPPORT_ROLE_ID" INTEGER;',
             'ALTER TABLE servers ADD COLUMN "account_age_min" INTEGER;',
             ]
         for query in queries:

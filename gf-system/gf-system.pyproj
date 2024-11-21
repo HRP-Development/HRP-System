@@ -32,13 +32,12 @@
     <Compile Include="CustomModules\database_setup.py" />
     <Compile Include="CustomModules\stat_dock.py" />
     <Compile Include="CustomModules\steam_api.py" />
-    <Compile Include="CustomModules\ticket.py" />
+    <Compile Include="CustomModules\ticket_transcript.py" />
     <Compile Include="main.py" />
     <Compile Include="__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include=".env" />
-    <Content Include="release_build.bat" />
     <Content Include="requirements.txt" />
     <Content Include="teams.json" />
   </ItemGroup>

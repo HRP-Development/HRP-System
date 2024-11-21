@@ -30,7 +30,7 @@ from CustomModules import steam_api
 from CustomModules.steam_api import Errors as steam_errors
 from CustomModules.bad_words import BadWords
 from CustomModules import context_commands
-from CustomModules.ticket import TicketHTML
+from CustomModules.ticket_transcript import TicketHTML
 from CustomModules import epic_games_api
 from CustomModules import stat_dock
 
@@ -53,7 +53,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.8.0"
+BOT_VERSION = "1.9.0"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -235,7 +235,7 @@ class DiscordEvents():
                 self.user: discord.PermissionOverwrite(read_messages=True, embed_links=True, attach_files=True)
             }
     
-            c.execute('SELECT SUPPORT_ROLE_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
+            c.execute(f'SELECT SUPPORT_ROLE_ID_{str(self.category).upper()} FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
             support_role_id = c.fetchone()[0]
             if support_role_id is not None:
                 support_role: discord.Role = interaction.guild.get_role(int(support_role_id))
@@ -2310,9 +2310,9 @@ async def self(interaction: discord.Interaction, entry_id: int):
 @discord.app_commands.checks.cooldown(1, 2, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(administrator=True)
 @discord.app_commands.describe(channel='In which channel the ticketsystem should be.',
-                               archive='In which channel the transcript should be send.',
-                               support='Group that has accesd to ticket controls.')
-async def self(interaction: discord.Interaction, channel: discord.TextChannel, archive: discord.TextChannel, support: discord.Role):
+                               archive='In which channel the transcript should be send.'
+                              )
+async def self(interaction: discord.Interaction, channel: discord.TextChannel, archive: discord.TextChannel):
     class TicketDropdown(discord.ui.Select):
             def __init__(self):
                 options = [
@@ -2322,6 +2322,7 @@ async def self(interaction: discord.Interaction, channel: discord.TextChannel, a
                 discord.SelectOption(label="Bug", description="Falls du einen Bug gefunden hast."),
                 discord.SelectOption(label="Feedback", description="Falls du Feedback an HRP hast."),
                 discord.SelectOption(label="Entbannung", description="Wenn du einen Entbannungsantrag stellen möchtest."),
+                discord.SelectOption(label="Putschantrag", description="Wenn du einen Putschantrag stellen möchtest."),
                 discord.SelectOption(label="Sonstiges", description="Für alles andere."),
                 ]
                 super().__init__(placeholder="Wähle ein Ticket-Thema aus.", options=options, min_values=1, max_values=1, custom_id="support_menu")
@@ -2345,7 +2346,39 @@ async def self(interaction: discord.Interaction, channel: discord.TextChannel, a
         await interaction.response.send_message(content=f'[ERROR] Ticketsystem wurde schon erstellt.', ephemeral=True)
     else:
         try:
-            c.execute('INSERT INTO TICKET_SYSTEM (GUILD_ID, CHANNEL, ARCHIVE_CHANNEL_ID, SUPPORT_ROLE_ID) VALUES (?, ?, ?, ?)', (interaction.guild_id, channel.id, archive.id, support.id))
+            #Create one Role per Label
+            discord_role = await interaction.guild.create_role(name="Support-Discord", permissions=discord.Permissions.none())
+            async def get_or_create_role(guild, name):
+                role = discord.utils.get(guild.roles, name=name)
+                if role is None:
+                    role = await guild.create_role(name=name, permissions=discord.Permissions.none())
+                return role
+
+            discord_role = await get_or_create_role(interaction.guild, "Support-Discord")
+            report_role = await get_or_create_role(interaction.guild, "Support-Report")
+            support_role = await get_or_create_role(interaction.guild, "Support-Support")
+            bug_role = await get_or_create_role(interaction.guild, "Support-Bug")
+            feedback_role = await get_or_create_role(interaction.guild, "Support-Feedback")
+            entbannung_role = await get_or_create_role(interaction.guild, "Support-Entbannung")
+            putschantrag_role = await get_or_create_role(interaction.guild, "Support-Putschantrag")
+            sonstiges_role = await get_or_create_role(interaction.guild, "Support-Sonstiges")
+
+            c.execute(
+                'INSERT INTO TICKET_SYSTEM (GUILD_ID, CHANNEL, ARCHIVE_CHANNEL_ID, SUPPORT_ROLE_ID_SUPPORT, SUPPORT_ROLE_ID_REPORT, SUPPORT_ROLE_ID_DISCORD, SUPPORT_ROLE_ID_BUG, SUPPORT_ROLE_ID_FEEDBACK, SUPPORT_ROLE_ID_SONSTIGES, SUPPORT_ROLE_ID_ENTBANNUNG, SUPPORT_ROLE_ID_PUTSCHANTRAG) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                (
+                    interaction.guild_id,
+                    channel.id,
+                    archive.id,
+                    support_role.id,
+                    report_role.id,
+                    discord_role.id,
+                    bug_role.id,
+                    feedback_role.id,
+                    sonstiges_role.id,
+                    entbannung_role.id,
+                    putschantrag_role.id
+                )
+            )
             conn.commit()
             await channel.send(embed=ticketsystem_embed, view=TicketSystemView())
             await interaction.response.send_message(content=f'Ticketsystem wurde erfolgreich erstellt.', ephemeral=True)
@@ -2354,7 +2387,7 @@ async def self(interaction: discord.Interaction, channel: discord.TextChannel, a
             program_logger.warning(text)
             await interaction.response.send_message(text)
             
-@tree.command(name = 'remove_ticket_channel', description = 'removes the ticket channel.')
+@tree.command(name = 'remove_ticketsystem', description = 'removes the ticket channel.')
 @discord.app_commands.checks.cooldown(1, 120, key=lambda i: (i.guild_id))
 @discord.app_commands.checks.has_permissions(administrator = True)
 async def self(interaction: discord.Interaction):
@@ -2364,11 +2397,30 @@ async def self(interaction: discord.Interaction):
     if guild is None:
         await interaction.followup.send(content=f'[ERROR] Der Ticket Channel wurde noch nicht gesetzt.', ephemeral=True)
     else:
+        support_role_columns = [
+        "SUPPORT_ROLE_ID_SUPPORT", "SUPPORT_ROLE_ID_REPORT", "SUPPORT_ROLE_ID_DISCORD",
+        "SUPPORT_ROLE_ID_BUG", "SUPPORT_ROLE_ID_FEEDBACK", "SUPPORT_ROLE_ID_SONSTIGES",
+        "SUPPORT_ROLE_ID_ENTBANNUNG", "SUPPORT_ROLE_ID_PUTSCHANTRAG"
+        ]
+        for column in support_role_columns:
+            c.execute(f"SELECT {column} FROM TICKET_SYSTEM WHERE {column} IS NOT NULL")
+            role_ids = c.fetchall()   
+            for role_id_tuple in role_ids:
+                role_id = role_id_tuple[0]
+                role = interaction.guild.get_role(role_id)
+                if role:
+                    try:
+                        await role.delete(reason="TICKET_SYSTEM wird gelöscht.")
+                    except discord.DiscordException as e:
+                        program_logger.warning(
+                            f"Rolle konnte nicht gelöscht werden. -> {e}"
+                        )
+
         c.execute("DELETE FROM TICKET_SYSTEM WHERE GUILD_ID = ?", (interaction.guild_id,))
         conn.commit()
         await interaction.followup.send(content=f'Ticket Channel wurde erfolgreich entfernt.', ephemeral=True)
 
-@tree.command(name = 'verify_send_pannel', description = 'Send pannel to varification channel.')
+@tree.command(name = 'verify_send_pannel', description = 'Send panel to verification channel.')
 @discord.app_commands.checks.has_permissions(manage_guild = True)
 async def self(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral= True)
