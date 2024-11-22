@@ -379,13 +379,13 @@ class TicketHTML:
         </div>
 
         <div class="footer">
-            <a href="https://url.bloodygang.com/hrpcommunity" target="_blank">
+            <a href="https://shop.hrp-community.net" target="_blank">
                 <i class="fas fa-home"></i> Website
             </a>
-            <a href="https://url.bloodygang.com/hrpcommunity" target="_blank">
+            <a href="https://url.serpensin.com/hrpcommunity" target="_blank">
                 <i class="fab fa-discord"></i> Discord
             </a>
-            <a href="https://url.bloodygang.com/hrpcommunity" target="_blank">
+            <a href="https://steamcommunity.com/groups/hazeroleplay" target="_blank">
                 <i class="fab fa-steam"></i> Steam
             </a>
         </div>
