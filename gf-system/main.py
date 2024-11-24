@@ -53,7 +53,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.9.1"
+BOT_VERSION = "1.9.2"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -762,7 +762,7 @@ class DiscordEvents():
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
-        if len(before.content) + len(after.content) <= 5800:
+        if max(len(before.content), len(after.content)) > 1024:
             embed.add_field(name="Alt", value=f"```{before.content}```" or "*(N/A)*", inline=False)
             embed.add_field(name="Neu", value=f"```{after.content}```" or "*(N/A)*", inline=False)
         else:
