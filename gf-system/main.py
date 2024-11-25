@@ -753,6 +753,12 @@ class DiscordEvents():
         await Functions.check_message(message)
 
     async def on_message_edit(before, after):
+        def _add_content_field(embed, name, content):
+            if len(content) > 1024:
+                embed.add_field(name=name, value=f"```{content}```" or "*(N/A)*", inline=False)
+            else:
+                embed.add_field(name="\u2007", value="```Änderung von zu großem Text!```" or "*(N/A)*", inline=False)
+
         if before.content == after.content or before.author.bot:
             return
 
@@ -762,11 +768,8 @@ class DiscordEvents():
             timestamp=datetime.datetime.now(datetime.timezone.utc)
         )
 
-        if max(len(before.content), len(after.content)) > 1024:
-            embed.add_field(name="Alt", value=f"```{before.content}```" or "*(N/A)*", inline=False)
-            embed.add_field(name="Neu", value=f"```{after.content}```" or "*(N/A)*", inline=False)
-        else:
-            embed.add_field(name="\u2007", value=f"```Änderung von zu großem Text!```" or "*(N/A)*", inline=False)
+        _add_content_field(embed, "Alt", before.content)
+        _add_content_field(embed, "Neu", after.content)
 
         embed.set_author(name=after.author.nick if after.author.nick is not None else after.author.name, icon_url=after.author.avatar.url)
         embed.description = (f"✏️ **Nachricht von** {after.author.mention} **wurde in** {after.channel.mention} **bearbeitet**.\n[Jump to Message]({after.jump_url})")
