@@ -53,7 +53,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.9.2"
+BOT_VERSION = "1.9.3"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -754,7 +754,7 @@ class DiscordEvents():
 
     async def on_message_edit(before, after):
         def _add_content_field(embed, name, content):
-            if len(content) > 1024:
+            if len(content) <= 1018:
                 embed.add_field(name=name, value=f"```{content}```" or "*(N/A)*", inline=False)
             else:
                 embed.add_field(name="\u2007", value="```Änderung von zu großem Text!```" or "*(N/A)*", inline=False)
