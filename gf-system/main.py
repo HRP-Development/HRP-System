@@ -53,7 +53,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.9.3"
+BOT_VERSION = "1.9.4"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -1215,28 +1215,37 @@ class Functions():
         host, port = entry_id[2], entry_id[3]
         try:
             server_info = await a2s.ainfo((host, port))
+            embed = discord.Embed(
+                title=server_info.server_name,
+                url=f'{STEAM_REDIRECT_URL}?ip={host}&port={port}',
+                description=f"**IP:** {host}:{port}",
+                color=discord.Color.brand_green(),
+                timestamp=datetime.datetime.now(datetime.UTC),
+            )
+            embed.add_field(name="Gamemode", value=server_info.game, inline=True)
+            embed.add_field(name="Version", value=server_info.version, inline=True)
+            embed.add_field(name="Ping", value=f"{server_info.ping * 1000:.1f}ms", inline=True)
+            embed.add_field(name="Aktuelle Spieler", value=server_info.player_count, inline=True)
+            embed.add_field(name="Maximale Spieler", value=server_info.max_players, inline=True)
+            embed.add_field(name="Map", value=server_info.map_name, inline=True)
         except:
-            return "Server nicht erreichbar."
-        embed = discord.Embed(
-            title = server_info.server_name,
-            url = f'{STEAM_REDIRECT_URL}?ip={host}&port={port}',
-            description = f"**IP:** {host}:{port}",
-            color = discord.Color.brand_green(),
-            timestamp = datetime.datetime.now(datetime.UTC),
-        )
-        
+            embed = discord.Embed(
+                title="Server Offline",
+                description=f"**IP:** {host}:{port}",
+                color=discord.Color.red(),
+                timestamp=datetime.datetime.now(datetime.UTC),
+            )
+            embed.add_field(name="Gamemode", value="N/A", inline=True)
+            embed.add_field(name="Version", value="N/A", inline=True)
+            embed.add_field(name="Ping", value="N/A", inline=True)
+            embed.add_field(name="Aktuelle Spieler", value="N/A", inline=True)
+            embed.add_field(name="Maximale Spieler", value="N/A", inline=True)
+            embed.add_field(name="Map", value="N/A", inline=True)
+
         guild_image = channel.guild.icon.url if channel.guild.icon else 'https://cdn.cloudflare.steamstatic.com/steam/apps/4000/header.jpg'
         embed.set_thumbnail(url=guild_image)
-        #embed.add_field(name='\u200b', value='\u200b', inline=False)
-        embed.add_field(name="Gamemode", value=server_info.game, inline=True)
-        embed.add_field(name="Version", value=server_info.version, inline=True)
-        embed.add_field(name="Ping", value=f"{server_info.ping * 1000:.1f}ms", inline=True)
-        embed.add_field(name="Aktuelle Spieler", value=server_info.player_count, inline=True)
-        embed.add_field(name="Maximale Spieler", value=server_info.max_players, inline=True)
-        embed.add_field(name='\u200b', value='\u200b', inline=True)
-        embed.add_field(name="Map", value=server_info.map_name, inline=True)
-        embed.add_field(name='\u200b', value='\u200b', inline=True)
         embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
+
         if update:
             try:
                 await message_on_update.edit(embed=embed)
