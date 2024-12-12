@@ -7,6 +7,7 @@
 #       • Private Sprachchannel
 
 import time
+from unicodedata import category
 startupTime_start = time.time()
 import a2s
 import asyncio
@@ -53,7 +54,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.9.4"
+BOT_VERSION = "1.9.5"
 BadWords = BadWords()
 
 TOKEN = os.getenv('TOKEN')
@@ -320,7 +321,8 @@ class DiscordEvents():
                 overwrite.add_reactions = False  
                 overwrite.read_messages = False 
                 await interaction.channel.set_permissions(interaction.guild.default_role, overwrite=overwrite)
-        
+                await interaction.channel.send(f'Das Ticket wurde von {interaction.user.mention} geschlossen.')
+
                 transcript = await TicketSystem.create_transcript(interaction.channel.id, data_created_tickets[1])
                 user: discord.User = await Functions.get_or_fetch('user', data_created_tickets[1])
                 with open(transcript, 'rb') as f:
@@ -1384,7 +1386,8 @@ class Functions():
         if isAdmin:
             return True
         else:
-            c.execute('SELECT SUPPORT_ROLE_ID FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
+            supportRoleIdentifier = interaction.channel.category.name.upper().replace('TICKET-', 'SUPPORT_ROLE_ID_')
+            c.execute(f'SELECT {supportRoleIdentifier} FROM TICKET_SYSTEM WHERE GUILD_ID = ?', (interaction.guild.id,))
             support_role_id = c.fetchone()[0]
             if support_role_id is None:
                 return False
