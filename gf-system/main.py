@@ -7,7 +7,6 @@
 #       • Private Sprachchannel
 
 import time
-from unicodedata import category
 startupTime_start = time.time()
 import a2s
 import asyncio
