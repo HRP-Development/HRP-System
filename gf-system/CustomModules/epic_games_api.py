@@ -6,7 +6,7 @@ class Errors:
             self.message = message
             super().__init__(message)
             
-async def GetFreeGames():
+def GetFreeGames():
     api = EpicGamesStoreAPI()
     free_games = api.get_free_games()
     if 'data' in free_games and 'Catalog' in free_games['data'] and 'searchStore' in free_games['data']['Catalog']:
@@ -21,11 +21,7 @@ async def GetFreeGames():
                 description = game['description']
                 picture = game['keyImages'][0]['url']
                 link = game['productSlug']
-                url_slug = None
-                if 'catalogNs' in game and 'mappings' in game['catalogNs']:
-                    url_slug = game['catalogNs']['mappings'][0]['pageSlug']
-                elif 'offerMappings' in game and 'offerMappings' in game['offerMappings']:
-                    url_slug = game['offerMappings'][0]['pageSlug']
+                url_slug = game['productSlug']
                 game_info = {
                     'id': game_id,
                     'title': title,

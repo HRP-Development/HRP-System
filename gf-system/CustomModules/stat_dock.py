@@ -104,7 +104,7 @@ def setup(client:discord.Client, tree: discord.app_commands.CommandTree, connect
     if logger is None:
         logger = logging.getLogger("null")
         logger.addHandler(logging.NullHandler)
-    _logger = logger
+    _logger = logger.getChild("StatDock")
 
     _setup_database()
 
@@ -112,6 +112,8 @@ def setup(client:discord.Client, tree: discord.app_commands.CommandTree, connect
     tree.add_command(_statdock_list)
     tree.add_command(_statdock_update)
     tree.add_command(_statdock_enable_hidden)
+
+    _logger.info("Module has been set up.")
 
 async def task():
     # Calling this function in setup_hook(), can/will lead to a deadlock!
@@ -142,6 +144,7 @@ async def task():
                                )
 
     await _bot.wait_until_ready()
+    _logger.info("Task has been started.")
 
     while True:
         await _function()
@@ -658,10 +661,3 @@ async def _statdock_enable_hidden(interaction: discord.Interaction):
                     ignore_none_category=True
                     )
     await interaction.followup.send("All hidden docks got enabled.")
-
-
-
-
-
-if __name__ == '__main__':
-    print(_get_current_time('Europe/Berlin', '%d.%m.%Y | %H:%M:%S'))

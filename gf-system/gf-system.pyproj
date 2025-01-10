@@ -24,12 +24,12 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="CustomModules\bad_words.py" />
     <Compile Include="CustomModules\bitmap_handler.py" />
     <Compile Include="CustomModules\context_commands.py" />
     <Compile Include="CustomModules\epic_games_api.py" />
     <Compile Include="CustomModules\log_handler.py" />
     <Compile Include="CustomModules\database_setup.py" />
+    <Compile Include="CustomModules\private_voice.py" />
     <Compile Include="CustomModules\stat_dock.py" />
     <Compile Include="CustomModules\steam_api.py" />
     <Compile Include="CustomModules\ticket_transcript.py" />
@@ -39,7 +39,6 @@
   <ItemGroup>
     <Content Include=".env" />
     <Content Include="requirements.txt" />
-    <Content Include="teams.json" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="CustomModules\" />
