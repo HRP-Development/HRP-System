@@ -47,7 +47,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.10.1"
+BOT_VERSION = "1.11.0"
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
@@ -715,6 +715,11 @@ class DiscordEvents():
 
         if not message.author.bot:
             await Functions.check_message(message)
+        if message.channel.type == discord.ChannelType.news:
+            message_types = [6, 19, 20]
+            if message.type.value in message_types:
+                return
+            await Functions.auto_publish(message)
 
     async def on_message_edit(before, after):
         def _add_content_field(embed, name, content):
@@ -999,6 +1004,27 @@ class Functions():
         except Exception as e:
             program_logger.error(f'Fehler beim laden der Teams: {e}')
             return {}
+
+    async def auto_publish(message: discord.Message):
+        channel = message.channel
+        permissions = channel.permissions_for(channel.guild.me)
+        if permissions.add_reactions:
+            await message.add_reaction("\U0001F4E2")
+        if permissions.send_messages and permissions.manage_messages:
+            try:
+                await message.publish()
+            except Exception as e:
+                if not message.flags.crossposted:
+                    discord_logger.error(f"Error publishing message in {channel}: {e}")
+                    if permissions.add_reactions:
+                        await message.add_reaction("\u26A0")
+            finally:
+                await message.remove_reaction("\U0001F4E2", bot.user)
+        else:
+            discord_logger.warning(f"No permission to publish in {channel}.")
+            await message.remove_reaction("\U0001F4E2", bot.user)
+            if permissions.add_reactions:
+                await message.add_reaction("\u26D4")
 
     async def verify(interaction: discord.Interaction):
         class CaptchaInput(discord.ui.Modal, title='Verification'):
