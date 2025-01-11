@@ -47,7 +47,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.11.1"
+BOT_VERSION = "1.11.2"
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
@@ -1107,7 +1107,7 @@ class Functions():
 
     async def send_logging_message(interaction: discord.Interaction = None, member: discord.Member = None, kind: str = '', mass_amount: int = 0):
         guild_id = interaction.guild_id if interaction else member.guild.id
-        c.execute('SELECT log_channel, ban_time, account_age FROM servers WHERE guild_id = ?', (guild_id,))
+        c.execute('SELECT log_channel, ban_time, account_age_min FROM servers WHERE guild_id = ?', (guild_id,))
         row = c.fetchone()
         if not row:
             return
@@ -2365,7 +2365,7 @@ async def self(interaction: discord.Interaction, verify_channel: discord.TextCha
 @discord.app_commands.checks.has_permissions(manage_guild = True)
 @discord.app_commands.guild_only
 async def self(interaction: discord.Interaction):
-    c.execute('SELECT verify_channel, verify_role, log_channel, timeout, action, ban_time, account_age FROM servers WHERE guild_id = ?', (interaction.guild.id,))
+    c.execute('SELECT verify_channel, verify_role, log_channel, timeout, action, ban_time, account_age_min FROM servers WHERE guild_id = ?', (interaction.guild.id,))
     data = c.fetchone()
     if data:
         verify_channel, verify_role, log_channel, timeout, action, ban_time, account_age = data
