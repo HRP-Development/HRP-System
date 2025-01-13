@@ -47,7 +47,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.11.3"
+BOT_VERSION = "1.11.4"
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
@@ -433,7 +433,7 @@ class DiscordEvents():
     async def on_guild_channel_update(before, after):
         if before.position == after.position and before.name == after.name:
             return
-        row = c.execute('SELECT channel_id FROM STATDOCK WHERE guild_id = ?', (after.channel.id,)).fetchone()
+        row = c.execute('SELECT channel_id FROM STATDOCK WHERE guild_id = ?', (after.id,)).fetchone()
         if not row:
             return
 
