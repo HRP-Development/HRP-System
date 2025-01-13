@@ -47,7 +47,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.11.2"
+BOT_VERSION = "1.11.3"
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
@@ -433,6 +433,9 @@ class DiscordEvents():
     async def on_guild_channel_update(before, after):
         if before.position == after.position and before.name == after.name:
             return
+        row = c.execute('SELECT channel_id FROM STATDOCK WHERE guild_id = ?', (after.channel.id,)).fetchone()
+        if not row:
+            return
 
         embed = discord.Embed(
             title="🔧 Channel aktualisiert",
@@ -443,7 +446,7 @@ class DiscordEvents():
         embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
         if before.name != after.name:
             embed.add_field(name="Name geändert", value=f"Von **{before.name}** zu **{after.name}**", inline=False)
-        
+
         row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.guild.id,)).fetchone()
         if row:
             channel = await Functions.get_or_fetch('channel', row[0])
@@ -676,7 +679,7 @@ class DiscordEvents():
             )
             embed.set_footer(text=bot.user.display_name, icon_url=bot.user.avatar.url if bot.user.avatar else '')
             embed.add_field(name="Änderungen:", value="\n".join(changes), inline=False)
-            
+
             row = c.execute("SELECT logging_channel FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (after.guild.id,)).fetchone()
             if row:
                 channel = await Functions.get_or_fetch('channel', row[0])
@@ -1498,34 +1501,34 @@ class Tasks():
         async def _function():
             c.execute('SELECT GUILD_ID, team_list_channel FROM `GUILD_SETTINGS`')
             data = c.fetchall()
-    
+
             for entry in data:
                 try:
                     guild = bot.get_guild(entry[0])
                     if not guild:
                         continue
-    
+
                     embeds = await Functions.update_team_embed(guild)
                     if not embeds:
                         continue
-    
+
                     channel = await Functions.get_or_fetch('channel', entry[1])
                     if not channel:
                         continue
-    
+
                     last_message = None
                     async for message in channel.history(limit=1):
                         if message.author == bot.user and message.embeds:
                             last_message = message
                             break
-    
+
                     if last_message:
                         await last_message.edit(embeds=embeds)
                     else:
                         await channel.send(embeds=embeds)
                 except Exception as e:
                     program_logger.error(f"Fehler beim Senden des Team Embeds: {e}")
-    
+
         while not bot.initialized:
             await asyncio.sleep(5)
         while True:
@@ -1835,7 +1838,7 @@ async def self(interaction: discord.Interaction, welcome_channel: discord.TextCh
     await interaction.response.defer(ephemeral=True)
     guild_id = interaction.guild.id
     channels = (welcome_channel.id, leave_channel.id, logging_channel.id, announce_channel.id, team_update.id, free_games_channel.id, team_list_channel.id)
-    
+
     c.execute("SELECT 1 FROM GUILD_SETTINGS WHERE GUILD_ID = ?", (guild_id,))
     guild_exists = c.fetchone() is not None
 
@@ -2427,7 +2430,7 @@ async def self(interaction: discord.Interaction):
 async def verify_user(interaction: discord.Interaction, member: discord.Member):
     c.execute('SELECT verify_role FROM servers WHERE guild_id = ?', (interaction.guild.id,))
     verify_role_id = c.fetchone()
-    
+
     if not verify_role_id:
         await interaction.response.send_message('There are no settings for this server.\nUse `/setup` to set-up this server.', ephemeral=True)
         return
@@ -2447,12 +2450,6 @@ async def verify_user(interaction: discord.Interaction, member: discord.Member):
         await Functions.send_logging_message(interaction=interaction, kind='user_verify', member=member)
     except discord.Forbidden:
         await interaction.response.send_message('I do not have permission to add roles to this user.', ephemeral=True)
-
-@tree.command(name='get_userid', description='Print the ID of a given user.')
-@discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
-@discord.app_commands.describe(user='User to get the ID from.')
-async def self(interaction: discord.Interaction, user: discord.Member):
-    await interaction.response.send_message(content=f'The ID of {user.mention} is: `{user.id}`.', ephemeral=True)
 
 
 

@@ -544,6 +544,21 @@ async def timezone_autocomplete(interaction: discord.Interaction, current: str) 
     ]
 )
 async def _statdock_update(interaction: discord.Interaction, dock: discord.VoiceChannel, action: str, prefix: str = None):
+    """
+    Updates a stat dock based on the specified action.
+
+    This function allows enabling, disabling, deleting, or updating the prefix of a stat dock.
+    It first checks if the provided channel is a stat dock, then performs the specified action.
+
+    :param interaction: The interaction that triggered this command.
+    :type interaction: discord.Interaction
+    :param dock: The voice channel representing the stat dock to be updated.
+    :type dock: discord.VoiceChannel
+    :param action: The action to perform on the stat dock. Can be 'enable', 'disable', 'delete', or 'prefix'.
+    :type action: str
+    :param prefix: The new prefix for the stat dock. Only used if action is 'prefix'. Use 'DELETE' to remove the prefix.
+    :type prefix: str, optional
+    """
     await interaction.response.defer(ephemeral=True)
 
     is_dock = _c.execute("SELECT EXISTS(SELECT 1 FROM STATDOCK WHERE `channel_id` = ?)", (dock.id,)).fetchone()[0]
@@ -551,9 +566,9 @@ async def _statdock_update(interaction: discord.Interaction, dock: discord.Voice
         await interaction.followup.send(content=f"The channel {dock.mention} isn't a dock.")
         return
 
+    enabled = _c.execute("SELECT `enabled` FROM `STATDOCK` WHERE `channel_id` = ?", (dock.id,)).fetchone()[0]
     match action:
         case 'enable':
-            enabled = _c.execute("SELECT `enabled` FROM `STATDOCK` WHERE `channel_id` = ?", (dock.id,)).fetchone()[0]
             if enabled:
                 await interaction.followup.send("This dock is already enabled.")
                 return
@@ -561,7 +576,6 @@ async def _statdock_update(interaction: discord.Interaction, dock: discord.Voice
             await interaction.followup.send("Dock enabled.")
 
         case 'disable':
-            enabled = _c.execute("SELECT `enabled` FROM `STATDOCK` WHERE `channel_id` = ?", (dock.id,)).fetchone()[0]
             if not enabled:
                 await interaction.followup.send("This dock is already disabled.")
                 return
@@ -582,12 +596,20 @@ async def _statdock_update(interaction: discord.Interaction, dock: discord.Voice
 
     _conn.commit()
 
-
-
 @discord.app_commands.command(name='statdock_list', description='Lists every created stat dock.')
 @discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
 @discord.app_commands.checks.has_permissions(manage_guild = True)
 async def _statdock_list(interaction: discord.Interaction):
+    """
+    Lists every created stat dock for the current guild.
+
+    This function fetches all stat docks associated with the guild from which the interaction originated.
+    It then creates and sends an embed for each stat dock, displaying relevant information such as the
+    channel, frequency, last updated time, and prefix. The embeds are sent in batches of 10.
+
+    :param interaction: The interaction that triggered this command.
+    :type interaction: discord.Interaction
+    """
     await interaction.response.defer(ephemeral=True)
 
     _c.execute('SELECT * FROM STATDOCK WHERE `guild_id` = ?', (interaction.guild.id,))
@@ -610,7 +632,7 @@ async def _statdock_list(interaction: discord.Interaction):
         embed.add_field(name="Prefix", value=entry[9])
 
         match count_type:
-            case ['member', 'role']:
+            case 'member' | 'role':
                 embed.add_field(name="Count Members", value=_bitmap.check_key_in_bitkey('countusers', entry[12]))
                 embed.add_field(name="Count Bots", value=_bitmap.check_key_in_bitkey('countbots', entry[12]))
                 if count_type == 'role':
@@ -636,28 +658,42 @@ async def _statdock_list(interaction: discord.Interaction):
     if embeds:
         await interaction.followup.send(embeds=embeds)
 
-
-
 @discord.app_commands.command(name='statdock_enable_hidden', description='Enables all disabled channels, that got deleted.')
 @discord.app_commands.checks.cooldown(1, 10, key=lambda i: (i.user.id))
 @discord.app_commands.checks.has_permissions(manage_guild = True)
 async def _statdock_enable_hidden(interaction: discord.Interaction):
+    """
+    Enables all disabled stat docks that have been deleted.
+
+    This function fetches all stat docks that are disabled and belong to the guild
+    from which the interaction originated. It then attempts to re-initialize any
+    stat dock whose channel has been deleted.
+
+    :param interaction: The interaction that triggered this command.
+    :type interaction: discord.Interaction
+    """
     await interaction.response.defer(ephemeral=True)
     _c.execute('SELECT * FROM `STATDOCK` WHERE `enabled` = 0 AND `guild_id` = ?', (interaction.guild.id,))
     data = _c.fetchall()
+    
+    tasks = []
     for entry in data:
         channel = interaction.guild.get_channel(entry[4])
-        if channel is not None:
-            continue
-        await _re_init_dock(guild_id=interaction.guild.id,
-                    category_id=entry[3],
-                    channel_id=entry[4],
-                    stat_type=_bitmap.get_active_keys(entry[5], single=True),
-                    timezone=entry[6],
-                    timeformat=entry[7],
-                    counter=entry[12],
-                    role_id=entry[8],
-                    prefix=entry[9],
-                    ignore_none_category=True
-                    )
+        if channel is None:
+            tasks.append(_re_init_dock(
+                guild_id=interaction.guild.id,
+                category_id=entry[3],
+                channel_id=entry[4],
+                stat_type=_bitmap.get_active_keys(entry[5], single=True),
+                timezone=entry[6],
+                timeformat=entry[7],
+                counter=entry[12],
+                role_id=entry[8],
+                prefix=entry[9],
+                ignore_none_category=True
+            ))
+    
+    if tasks:
+        await asyncio.gather(*tasks)
+    
     await interaction.followup.send("All hidden docks got enabled.")
