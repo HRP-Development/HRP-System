@@ -47,7 +47,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.11.4"
+BOT_VERSION = "1.11.5"
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
@@ -1937,7 +1937,7 @@ async def self(interaction: discord.Interaction):
     color = discord.Color.red() if send_messages_permission else discord.Color.green()
 
     if not send_messages_permission:
-        await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=True)
+        await interaction.channel.set_permissions(interaction.guild.default_role, send_messages=None)
 
     unlock_eb = discord.Embed(
         title='🔓 Unlock',
