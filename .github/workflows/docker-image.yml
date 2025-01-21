@@ -38,7 +38,6 @@ jobs:
         IMAGE_NAME="ghcr.io/$REPO_OWNER/$REPO_NAME"
         PLATFORM_TAG=$(echo "${{ matrix.platform }}" | tr '/' '-')
         docker buildx build \
-          --no-cache \
           --compress \
           --platform ${{ matrix.platform }} \
           --tag $IMAGE_NAME:latest-${PLATFORM_TAG} \
