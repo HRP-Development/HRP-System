@@ -41,7 +41,6 @@ jobs:
           --compress \
           --platform ${{ matrix.platform }} \
           --tag $IMAGE_NAME:latest-${PLATFORM_TAG} \
-          --tag $IMAGE_NAME:$(date +%s)-${PLATFORM_TAG} \
           --push ./gf-system
       shell: bash
 
@@ -63,6 +62,6 @@ jobs:
         IMAGE_NAME="ghcr.io/$REPO_OWNER/$REPO_NAME"
         docker buildx imagetools create \
           --tag $IMAGE_NAME:latest \
-          $IMAGE_NAME:linux-amd64 \
-          $IMAGE_NAME:linux-arm64-v8 \
+          $IMAGE_NAME:latest-linux-amd64 \
+          $IMAGE_NAME:latest-linux-arm64-v8 \
       shell: bash
