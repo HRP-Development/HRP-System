@@ -1,1 +1,0 @@
-docker buildx build --build-arg BUILD_DATE=$BUILD_DATE$ --compress --platform linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8 -t serpensin/hrp-system:latest --push ./gf-system
