@@ -47,7 +47,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.11.5"
+BOT_VERSION = "1.11.6"
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
@@ -2028,7 +2028,7 @@ async def self(interaction: discord.Interaction, host: str, port: int):
         c.execute("INSERT INTO SERVER (GUILD, HOST, PORT) VALUES (?, ?, ?)", (interaction.guild_id, host, port))
         conn.commit()
         server_id = c.lastrowid
-        await interaction.followup.send(content=f"Server registered successfully.\nYou can now use `/send_panel` with ID {server_id}, to send it to a channel.", ephemeral=True)
+        await interaction.followup.send(content=f"Server registered successfully.\nYou can now use `/send_panel_server` with ID {server_id}, to send it to a channel.", ephemeral=True)
 
 @tree.command(name = 'send_panel_server', description = 'send the panel into a channel.')
 @discord.app_commands.checks.cooldown(2, 30, key=lambda i: (i.guild_id))
