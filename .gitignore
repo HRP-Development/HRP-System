@@ -367,3 +367,4 @@ FodyWeavers.xsd
 /gf-system/HRP-Sys/HRP-Sys.db
 /gf-system/HRP-Sys/activity.json
 /gf-system/env
+/gf-system/key.pem
