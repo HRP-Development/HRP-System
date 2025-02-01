@@ -27,6 +27,7 @@ from CustomModules.ticket_transcript import TicketHTML
 from CustomModules import epic_games_api
 from CustomModules import stat_dock
 from CustomModules import private_voice as pvoice
+from CustomModules import server_updater as supdater
 
 from aiohttp import web
 from dotenv import load_dotenv
@@ -47,13 +48,15 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.11.6"
+BOT_VERSION = "1.12.0"
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
 LOG_LEVEL = os.getenv('LOG_LEVEL')
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 STEAM_REDIRECT_URL = os.getenv('STEAM_REDIRECT_URL')
+PANEL_API_KEY = os.getenv('PANEL_API_KEY')
+GAMESERVER_IP = os.getenv('GAMESERVER_IP')
 
 #Init sentry
 sentry_sdk.init(
@@ -958,6 +961,7 @@ context_commands.setup(tree)
 
 stat_dock.setup(tree=tree, connection=conn, client=bot, logger=program_logger)
 pvoice.setup(tree=tree, connection=conn, client=bot, logger=program_logger)
+supdater.setup(client=bot, tree=tree, server_ip=GAMESERVER_IP, api_token=PANEL_API_KEY, logger=program_logger)
 TicketTranscript = TicketHTML(bot=bot, buffer_folder=BUFFER_FOLDER)
 
 class SignalHandler:

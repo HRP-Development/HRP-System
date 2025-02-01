@@ -14,6 +14,7 @@ services:
     image: ghcr.io/hrp-development/hrp-system:latest
     volumes:
       - data:/app/HRP-Sys
+      - /root/HRP-GamingVM-private.pem:/app/key.pem
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
