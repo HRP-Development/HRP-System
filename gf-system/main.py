@@ -48,7 +48,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.12.0"
+BOT_VERSION = "1.12.1"
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
@@ -283,6 +283,12 @@ class DiscordEvents():
             await interaction.response.send_message(f'Dein Ticket wurde erstellt: {ticket_channel.mention}', ephemeral=True)
 
     async def on_interaction(interaction: discord.Interaction):
+        class WhyView(discord.ui.View):
+            def __init__(self, *, timeout=None):
+                super().__init__(timeout=timeout)
+
+                self.add_item(discord.ui.Button(label='Secure your server', url = f'https://discord.com/api/oauth2/authorize?client_id=1251187046329094314&permissions=268503046&scope=bot%20applications.commands', style=discord.ButtonStyle.link))
+
         if interaction.response.is_done():
             return
 
@@ -361,16 +367,24 @@ class DiscordEvents():
             elif button_id == 'verify':
                 if interaction.user.id in bot.captcha_timeout:
                     try:
-                        await interaction.response.send_message('Bitte warte ein paar Sekunden.', ephemeral=True)
+                        await interaction.response.send_message('Please wait a few seconds before trying again.', ephemeral=True)
                     except discord.NotFound:
                         try:
-                            await interaction.followup.send('Bitte warte ein paar Sekunden.', ephemeral=True)
+                            await interaction.followup.send('Please wait a few seconds before trying again.', ephemeral=True)
                         except discord.NotFound:
                             pass
                     return
                 else:
                     await Functions.verify(interaction)
                     return
+            elif button_id == 'why':
+                try:
+                    await interaction.response.send_message(f'This serever is protected by <@!{bot.user.id}> to prevent raids & malicious users.\n\nTo gain access to this server, you\'ll need to verify yourself by completing a captcha.\n\nYou don\'t need to connect your account for that.', view = WhyView(), ephemeral=True)
+                except discord.NotFound:
+                    try:
+                        await interaction.followup.send(f'This serever is protected by <@!{bot.user.id}> to prevent raids & malicious users.\n\nTo gain access to this server, you\'ll need to verify yourself by completing a captcha.\n\nYou don\'t need to connect your account for that.', view = WhyView(), ephemeral=True)
+                    except discord.NotFound:
+                        pass
 
     async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError) -> None:
         options = interaction.data.get("options", [])
