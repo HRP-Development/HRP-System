@@ -7,9 +7,9 @@ import logging
 
 
 # Setup
-def setup(client:discord.Client, tree: discord.app_commands.CommandTree, server_ip:str, api_token: str, logger: logging.Logger = None):
-    global _bot, _logger, _api_token, _server_ip
-    _bot, _api_token, _server_ip = client, api_token, server_ip
+def setup(client:discord.Client, tree: discord.app_commands.CommandTree, server_ip:str, api_token: str, sshKey_pw: str, logger: logging.Logger = None):
+    global _bot, _logger, _api_token, _server_ip, _sshKey_pw
+    _bot, _api_token, _server_ip, _sshKey_pw = client, api_token, server_ip, sshKey_pw
 
     if tree is None:
         raise ValueError("Command tree cannot be None.")
@@ -115,7 +115,7 @@ async def _send_ssh_command(command: str) -> bool:
     Returns:
         bool: True if the command was successfully executed, False otherwise.
     """
-    key = paramiko.RSAKey.from_private_key_file("key.pem")
+    key = paramiko.Ed25519Key.from_private_key_file("key.pem", password=_sshKey_pw)
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:

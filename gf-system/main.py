@@ -48,7 +48,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.12.1"
+BOT_VERSION = "1.12.2"
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
@@ -57,6 +57,7 @@ STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 STEAM_REDIRECT_URL = os.getenv('STEAM_REDIRECT_URL')
 PANEL_API_KEY = os.getenv('PANEL_API_KEY')
 GAMESERVER_IP = os.getenv('GAMESERVER_IP')
+SSHKEY_PW = os.getenv('SSHKEY_PW')
 
 #Init sentry
 sentry_sdk.init(
@@ -705,36 +706,42 @@ class DiscordEvents():
 
     async def on_message(message):
         async def __wrong_selection():
-            await message.channel.send(
-                  '```'
-                  'Commands:\n'
-                  'help - Zeigt diese Nachricht.\n'
-                  'log - Gibt dir denn Log.\n'
-                  'activity - Setzt die Aktivität des Bots.\n'
-                  'status - Setzt denn Status des Bots.\n'
-                  'shutdown - Fährt denn Bot herunter.\n'
-                  '```'
-            )
+            await message.channel.send('```'
+                                       'Commands:\n'
+                                       'help - Shows this message\n'
+                                       'log - Get the log\n'
+                                       'activity - Set the activity of the bot\n'
+                                       'status - Set the status of the bot\n'
+                                       'shutdown - Shutdown the bot\n'
+                                       '```')
 
-        if message.guild is None:
-            if message.author.id == int(OWNERID):
-                args = message.content.split(' ')
-                program_logger.debug(args)
-                command, *args = args
-                owner_commands = {
-                    'log': Owner.log,
-                    'activity': Owner.activity,
-                    'status': Owner.status,
-                    'shutdown': Owner.shutdown
-                }
-                if command in owner_commands:
-                    await owner_commands[command](message, args)
-                else:
+        if message.guild is None and message.author.id == int(OWNERID):
+            args = message.content.split(' ')
+            program_logger.debug(args)
+            command, *args = args
+            match command:
+                case 'help':
+                    await __wrong_selection()
+                    return
+                case 'log':
+                    await Owner.log(message, args)
+                    return
+                case 'activity':
+                    await Owner.activity(message, args)
+                    return
+                case 'status':
+                    await Owner.status(message, args)
+                    return
+                case 'shutdown':
+                    await Owner.shutdown(message)
+                    return
+                case _:
                     await __wrong_selection()
             return
 
         if not message.author.bot:
             await Functions.check_message(message)
+            return
         if message.channel.type == discord.ChannelType.news:
             message_types = [6, 19, 20]
             if message.type.value in message_types:
@@ -975,7 +982,7 @@ context_commands.setup(tree)
 
 stat_dock.setup(tree=tree, connection=conn, client=bot, logger=program_logger)
 pvoice.setup(tree=tree, connection=conn, client=bot, logger=program_logger)
-supdater.setup(client=bot, tree=tree, server_ip=GAMESERVER_IP, api_token=PANEL_API_KEY, logger=program_logger)
+supdater.setup(client=bot, tree=tree, server_ip=GAMESERVER_IP, api_token=PANEL_API_KEY, sshKey_pw=SSHKEY_PW, logger=program_logger)
 TicketTranscript = TicketHTML(bot=bot, buffer_folder=BUFFER_FOLDER)
 
 class SignalHandler:
