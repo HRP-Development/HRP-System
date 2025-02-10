@@ -30,6 +30,7 @@ def setup(client:discord.Client, tree: discord.app_commands.CommandTree, server_
 _allowed_cwrp = [970119359840284743,    # Serpensin
                 587018112134807567,     # Gravefist
                 434713695084609537,     # Bright
+                556903657250095124,     # Justin
                 ]
 _allowed_jvs = [970119359840284743,     # Serpensin
                 587018112134807567,     # Gravefist
