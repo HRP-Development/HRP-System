@@ -27,22 +27,22 @@ def setup(client:discord.Client, tree: discord.app_commands.CommandTree, server_
 
 
 
-_allowed_cwrp = [970119359840284743,    # Serpensin
-                587018112134807567,     # Gravefist
-                434713695084609537,     # Bright
-                556903657250095124,     # Justin
+_allowed_imprp = [970119359840284743,    # Serpensin
+                 587018112134807567,     # Gravefist
+                 434713695084609537,     # Bright
+                 556903657250095124,     # Justin
+                 ]
+_allowed_jvs = [970119359840284743,      # Serpensin
+                587018112134807567,      # Gravefist
+                434713695084609537,      # Bright
                 ]
-_allowed_jvs = [970119359840284743,     # Serpensin
-                587018112134807567,     # Gravefist
-                434713695084609537,     # Bright
-                ]
-_allowed_darkrp = [970119359840284743,  # Serpensin
-                587018112134807567,     # Gravefist
-                434713695084609537,     # Bright
-                690500302331183154,     # Raymond
+_allowed_darkrp = [970119359840284743,   # Serpensin
+                587018112134807567,      # Gravefist
+                434713695084609537,      # Bright
+                690500302331183154,      # Raymond
                 ]
 _server_list = {
-    "cwrp": "454d7a80",
+    "imprp": "454d7a80",
     "jvs": "6c7dbfba",
     "darkrp": "01063651"
 }
@@ -155,7 +155,7 @@ async def _send_ssh_command(command: str) -> bool:
 async def _gameserver_update(interaction: discord.Interaction, server: str):
     await interaction.response.defer(ephemeral=True)
 
-    allowed_users = {"cwrp": _allowed_cwrp, "jvs": _allowed_jvs, "darkrp": _allowed_darkrp}.get(server)
+    allowed_users = {"imprp": _allowed_imprp, "jvs": _allowed_jvs, "darkrp": _allowed_darkrp}.get(server)
     if allowed_users is None:
         await interaction.followup.send("❌ Invalid server.")
         return
