@@ -44,7 +44,7 @@ _allowed_scprp = [970119359840284743,    # Serpensin
 _server_list = {
     "jvs": "6c7dbfba",
     "darkrp": "01063651",
-    "scprp": "8854ea1e",
+    "scprp": "80b33e5d",
 }
 
 
