@@ -41,10 +41,15 @@ _allowed_scprp = [970119359840284743,    # Serpensin
                 434713695084609537,      # Bright
                 1149314526244786276,     # Schluxx
                 ]
+_allowed_ttt2 = [970119359840284743,     # Serpensin
+                587018112134807567,      # Gravefist
+                434713695084609537,      # Bright
+                ]
 _server_list = {
     "jvs": "6c7dbfba",
     "darkrp": "01063651",
     "scprp": "80b33e5d",
+    "ttt2": "0e10dc65"
 }
 
 
@@ -155,7 +160,7 @@ async def _send_ssh_command(command: str) -> bool:
 async def _gameserver_update(interaction: discord.Interaction, server: str):
     await interaction.response.defer(ephemeral=True)
 
-    allowed_users = {"jvs": _allowed_jvs, "darkrp": _allowed_darkrp, "scprp": _allowed_scprp}.get(server)
+    allowed_users = {"jvs": _allowed_jvs, "darkrp": _allowed_darkrp, "scprp": _allowed_scprp, "ttt2": _allowed_ttt2}.get(server)
     if allowed_users is None:
         await interaction.followup.send("❌ Invalid server.")
         return

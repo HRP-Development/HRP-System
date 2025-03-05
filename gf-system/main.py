@@ -1,6 +1,4 @@
-﻿# Todo: • Abmeldungen für TB
-
-import time
+﻿import time
 startupTime_start = time.time()
 import a2s
 import asyncio
@@ -48,7 +46,7 @@ LOG_FOLDER = f'{APP_FOLDER_NAME}//Logs//'
 BUFFER_FOLDER = f'{APP_FOLDER_NAME}//Buffer//'
 ACTIVITY_FILE = f'{APP_FOLDER_NAME}//activity.json'
 SQL_FILE = os.path.join(APP_FOLDER_NAME, f'{BOT_NAME}.db')
-BOT_VERSION = "1.12.8"
+BOT_VERSION = "1.12.9"
 
 TOKEN = os.getenv('TOKEN')
 OWNERID = os.getenv('OWNER_ID')
